@@ -10,7 +10,7 @@ load_dotenv()
 # Get the base directory of the application
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-app = Flask(__name__, static_folder='static')
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 CORS(app)
 
 # Initialize OpenAI client (always reload from environment to allow key updates)
@@ -1027,12 +1027,65 @@ DOUBLE-CHECK:
 @app.route('/')
 def index():
     """Serve home.html as the landing page"""
-    return send_file(os.path.join(BASE_DIR, 'home.html'))
+    try:
+        home_path = os.path.join(BASE_DIR, 'home.html')
+        if not os.path.exists(home_path):
+            # Try alternative paths
+            alt_paths = [
+                os.path.join(os.getcwd(), 'home.html'),
+                'home.html',
+                os.path.join(BASE_DIR, '..', 'home.html')
+            ]
+            for alt_path in alt_paths:
+                if os.path.exists(alt_path):
+                    home_path = alt_path
+                    break
+            else:
+                return f"Error: home.html not found. Checked: {home_path}", 404
+        
+        with open(home_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return content, 200, {'Content-Type': 'text/html; charset=utf-8'}
+    except Exception as e:
+        return f"Error loading home.html: {str(e)}", 500
 
 @app.route('/generate')
 def generate():
     """Serve index.html for the question generator page"""
-    return send_file(os.path.join(BASE_DIR, 'index.html'))
+    try:
+        index_path = os.path.join(BASE_DIR, 'index.html')
+        if not os.path.exists(index_path):
+            # Try alternative paths
+            alt_paths = [
+                os.path.join(os.getcwd(), 'index.html'),
+                'index.html',
+                os.path.join(BASE_DIR, '..', 'index.html')
+            ]
+            for alt_path in alt_paths:
+                if os.path.exists(alt_path):
+                    index_path = alt_path
+                    break
+            else:
+                return f"Error: index.html not found. Checked: {index_path}", 404
+        
+        with open(index_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return content, 200, {'Content-Type': 'text/html; charset=utf-8'}
+    except Exception as e:
+        return f"Error loading index.html: {str(e)}", 500
+
+@app.route('/debug')
+def debug():
+    """Debug endpoint to check file paths and environment"""
+    debug_info = {
+        'BASE_DIR': BASE_DIR,
+        'current_working_directory': os.getcwd(),
+        'home.html_exists': os.path.exists(os.path.join(BASE_DIR, 'home.html')),
+        'index.html_exists': os.path.exists(os.path.join(BASE_DIR, 'index.html')),
+        'static_folder_exists': os.path.exists(os.path.join(BASE_DIR, 'static')),
+        'files_in_base_dir': os.listdir(BASE_DIR) if os.path.exists(BASE_DIR) else 'N/A'
+    }
+    return jsonify(debug_info)
 
 @app.route('/api/generate', methods=['POST'])
 def generate_questions():
