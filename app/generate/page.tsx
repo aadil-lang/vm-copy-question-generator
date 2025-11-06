@@ -116,6 +116,8 @@ function GeneratePageContent() {
       text += `${String.fromCharCode(65 + idx)}. ${opt.text}`
       if (opt.logic === 'CA') {
         text += ' (Correct Answer)'
+      } else if (opt.logic) {
+        text += ` (Logic: ${opt.logic})`
       }
       text += '\n'
     })
