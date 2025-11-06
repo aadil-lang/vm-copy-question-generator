@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
 import os
 import json
@@ -6,6 +6,9 @@ from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Get the base directory of the application
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = Flask(__name__, static_folder='static')
 CORS(app)
@@ -1023,11 +1026,13 @@ DOUBLE-CHECK:
 
 @app.route('/')
 def index():
-    return send_from_directory('.', 'home.html')
+    """Serve home.html as the landing page"""
+    return send_file(os.path.join(BASE_DIR, 'home.html'))
 
 @app.route('/generate')
 def generate():
-    return send_from_directory('.', 'index.html')
+    """Serve index.html for the question generator page"""
+    return send_file(os.path.join(BASE_DIR, 'index.html'))
 
 @app.route('/api/generate', methods=['POST'])
 def generate_questions():

@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="stylesheet" href="/static/css/style.css">
     <style>
         .homepage-container {
             max-width: 1200px;
@@ -330,7 +330,7 @@
     <script>
         // Handle logo loading error
         function handleLogoError(img) {
-            img.src = 'static/images/logo.png';
+            img.src = '/static/images/logo.png';
             img.onerror = function() {
                 this.style.display = 'none';
             };
@@ -338,9 +338,9 @@
         
         // Handle Wayground logo loading error
         function handleWaygroundLogoError(img) {
-            img.src = 'static/images/wayground-logo.svg';
+            img.src = '/static/images/wayground-logo.svg';
             img.onerror = function() {
-                this.src = 'static/images/wayground-logo.png';
+                this.src = '/static/images/wayground-logo.png';
                 this.onerror = function() {
                     this.style.display = 'none';
                 };
