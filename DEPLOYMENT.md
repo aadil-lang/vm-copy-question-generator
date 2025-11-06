@@ -1,136 +1,118 @@
-# Deployment Guide - Easiest Options
+# Deployment Guide - Next.js
 
-## Option 1: Render (Recommended - Easiest & Free)
+## Vercel (Recommended - Easiest)
 
 ### Steps:
 
 1. **Push your code to GitHub**
    ```bash
-   git init
    git add .
-   git commit -m "Initial commit"
-   git remote add origin <your-github-repo-url>
-   git push -u origin main
+   git commit -m "Next.js application"
+   git push
    ```
 
-2. **Go to Render.com**
-   - Sign up/login at https://render.com (free account)
-   - Click "New +" → "Web Service"
-   - Connect your GitHub repository
+2. **Go to Vercel.com**
+   - Sign up/login at https://vercel.com (free account)
+   - Click "New Project"
+   - Import your GitHub repository
+   - Select the `nextjs-app` directory as the root
 
-3. **Configure the service:**
-   - **Name**: vm-copy-question-generator (or any name)
-   - **Environment**: Python 3
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `gunicorn app:app`
-   - **Plan**: Free (or paid if you need more resources
+3. **Configure the project:**
+   - **Framework Preset**: Next.js (auto-detected)
+   - **Root Directory**: `nextjs-app`
+   - **Build Command**: `npm run build` (default)
+   - **Output Directory**: `.next` (default)
+
 4. **Add Environment Variable:**
-   - Go to "Environment" tab
+   - Go to "Environment Variables"
    - Add: `OPENAI_API_KEY` = `your_openai_api_key_here`
 
 5. **Deploy!**
-   - Click "Create Web Service"
+   - Click "Deploy"
    - Wait 2-3 minutes for deployment
-   - Your app will be live at: `https://your-app-name.onrender.com`
+   - Your app will be live at: `https://your-app-name.vercel.app`
 
 ### Notes:
-- Free tier sleeps after 15 minutes of inactivity (wakes up on first request)
-- First request after sleep may take 30-60 seconds
-- Free tier has 750 hours/month limit
+- Free tier includes unlimited deployments
+- Auto-deploys on every git push
+- Automatic HTTPS
+- Global CDN
 
 ---
 
-## Option 2: Railway (Also Very Easy)
+## Netlify
 
 ### Steps:
 
 1. **Push to GitHub** (same as above)
 
+2. **Go to Netlify.com**
+   - Sign up at https://netlify.com (free tier available)
+   - Click "New site from Git"
+   - Connect your GitHub repository
+
+3. **Configure:**
+   - **Base directory**: `nextjs-app`
+   - **Build command**: `npm run build`
+   - **Publish directory**: `.next`
+
+4. **Add Environment Variable:**
+   - Go to "Site settings" → "Environment variables"
+   - Add: `OPENAI_API_KEY`
+
+5. **Deploy!**
+   - Netlify auto-deploys on push
+   - Get your live URL from the dashboard
+
+---
+
+## Railway
+
+### Steps:
+
+1. **Push to GitHub**
+
 2. **Go to Railway.app**
-   - Sign up at https://railway.app (free tier available)
+   - Sign up at https://railway.app
    - Click "New Project" → "Deploy from GitHub repo"
    - Select your repository
 
 3. **Configure:**
-   - Railway auto-detects Python apps
+   - Railway auto-detects Next.js
+   - Set root directory to `nextjs-app`
    - Add environment variable: `OPENAI_API_KEY`
-   - Add environment variable: `PORT` (Railway sets this automatically, but you can verify)
 
 4. **Deploy!**
    - Railway auto-deploys on every push
    - Get your live URL from the dashboard
 
-### Notes:
-- Free tier: $5 credit/month (usually enough for small apps)
-- No sleep/wake delays
-- Auto-deploys on git push
-
 ---
 
-## Option 3: PythonAnywhere (Python-Specific)
+## Render
 
 ### Steps:
 
-1. **Sign up** at https://www.pythonanywhere.com (free tier available)
+1. **Push to GitHub**
 
-2. **Upload your code:**
-   - Go to "Files" tab
-   - Upload all your files OR use git clone
+2. **Go to Render.com**
+   - Sign up at https://render.com
+   - Click "New +" → "Web Service"
+   - Connect your GitHub repository
 
-3. **Create Web App:**
-   - Go to "Web" tab → "Add a new web app"
-   - Choose Flask
-   - Point to your `app.py` file
+3. **Configure:**
+   - **Name**: your-app-name
+   - **Environment**: Node
+   - **Root Directory**: `nextjs-app`
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm start`
 
-4. **Configure:**
-   - Set working directory to your project folder
-   - Add environment variable: `OPENAI_API_KEY` in "Web" → "Environment variables"
+4. **Add Environment Variable:**
+   - Go to "Environment" tab
+   - Add: `OPENAI_API_KEY`
 
-5. **Reload web app**
-   - Your app will be at: `https://yourusername.pythonanywhere.com`
-
-### Notes:
-- Free tier: Limited CPU time, single web app
-- Good for Python-specific hosting
-- Manual deployment (no auto-deploy)
-
----
-
-## Option 4: Fly.io (Good Free Tier)
-
-### Steps:
-
-1. **Install Fly CLI:**
-   ```bash
-   curl -L https://fly.io/install.sh | sh
-   ```
-
-2. **Login:**
-   ```bash
-   fly auth login
-   ```
-
-3. **Initialize:**
-   ```bash
-   fly launch
-   ```
-   - Follow prompts
-   - Creates `fly.toml` automatically
-
-4. **Set secrets:**
-   ```bash
-   fly secrets set OPENAI_API_KEY=your_key_here
-   ```
-
-5. **Deploy:**
-   ```bash
-   fly deploy
-   ```
-
-### Notes:
-- Free tier: 3 shared-cpu VMs
-- Good for containerized apps
-- Requires CLI setup
+5. **Deploy!**
+   - Click "Create Web Service"
+   - Wait for deployment
 
 ---
 
@@ -138,23 +120,22 @@
 
 | Platform | Easiest? | Free Tier | Auto-Deploy | Best For |
 |----------|----------|-----------|-------------|----------|
-| **Render** | ⭐⭐⭐⭐⭐ | Yes | Yes | Easiest overall |
-| **Railway** | ⭐⭐⭐⭐ | $5 credit | Yes | Modern, fast |
-| **PythonAnywhere** | ⭐⭐⭐ | Yes | No | Python-focused |
-| **Fly.io** | ⭐⭐ | Yes | Yes | Containerized |
+| **Vercel** | ⭐⭐⭐⭐⭐ | Yes | Yes | Next.js (made by Next.js creators) |
+| **Netlify** | ⭐⭐⭐⭐ | Yes | Yes | Static/SSG sites |
+| **Railway** | ⭐⭐⭐⭐ | $5 credit | Yes | Full-stack apps |
+| **Render** | ⭐⭐⭐ | Yes | Yes | General web apps |
 
 ---
 
-## Recommended: Render
+## Recommended: Vercel
 
-**Why Render?**
-- ✅ Easiest setup (just connect GitHub)
-- ✅ Free tier available
+**Why Vercel?**
+- ✅ Made by the creators of Next.js
+- ✅ Optimized for Next.js
+- ✅ Free tier with unlimited deployments
 - ✅ Auto-deploys on git push
-- ✅ Simple environment variable setup
-- ✅ No CLI needed
-
-**Trade-off:** Free tier sleeps after inactivity (wakes on first request)
+- ✅ Zero configuration needed
+- ✅ Global CDN included
 
 ---
 
@@ -165,23 +146,31 @@
 - [ ] Test question generation
 - [ ] Check static files (CSS/JS) load correctly
 - [ ] Test image upload/generation features
+- [ ] Verify all routes work:
+  - `/` (home page)
+  - `/generate` (generator page)
+  - `/api/generate` (API endpoint)
 
 ---
 
 ## Troubleshooting
 
-**App won't start:**
-- Check logs in Render/Railway dashboard
-- Verify `gunicorn` is in requirements.txt
-- Check PORT environment variable is being used
+**Build fails:**
+- Check build logs in deployment dashboard
+- Verify all dependencies are in `package.json`
+- Check TypeScript errors: `npm run build` locally
 
-**OpenAI API errors:**
+**API errors:**
 - Verify `OPENAI_API_KEY` environment variable is set
 - Check it's not wrapped in quotes
 - Ensure API key is valid and has credits
 
 **Static files not loading:**
-- Verify `static_folder='static'` in Flask app
-- Check file paths are correct
+- Verify files are in `public/` directory
+- Check file paths use `/static/...` (absolute paths)
 - Clear browser cache
+
+**TypeScript errors:**
+- Run `npm run build` locally to see errors
+- Install missing types: `npm install --save-dev @types/node @types/react @types/react-dom`
 
