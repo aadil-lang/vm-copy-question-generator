@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
     const notes = data.notes || ''
     const solution = data.solution || ''
     const images = data.images || ''
+    const imageFiles = data.imageFiles || [] // Array of base64 encoded images
     const numQuestions = parseInt(data.numCopyQuestions, 10)
     const model = data.model || 'gpt-4o'
     const questionTypeFromUrl = data.questionType || null
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
       notes,
       solution,
       images,
-      [],
+      imageFiles,
       numOptions,
       numQuestions,
       difficulty,
@@ -110,7 +111,10 @@ CRITICAL: When generating copy questions, you MUST:
   
   // Build user prompt
   const solutionText = solution ? `\nBase Solution: ${solution}` : ''
-  const imageInfo = images ? `\nBase Question Images: ${images}` : ''
+  const imageInfo = images ? `\nBase Question Image Description: ${images}` : ''
+  const uploadedImageInfo = imageFiles.length > 0 
+    ? `\nBase Question Uploaded Images: ${imageFiles.length} image(s) uploaded. These images are provided as base64 data and should be used as reference for generating similar visual elements.`
+    : ''
   const shouldGenerateImages = Boolean(images || imageFiles.length)
   
   let userPrompt = ''
@@ -136,7 +140,7 @@ BASE QUESTION:
 ${baseQuestion}
 
 ${images ? `IMAGE DESCRIPTION:
-${images}` : 'IMAGE DESCRIPTION: [Provided in base question or notes]'}
+${images}` : ''}${imageFiles.length > 0 ? `\n\nUPLOADED IMAGES: ${imageFiles.length} image(s) have been uploaded. Use these images as reference for the visual elements, dimensions, angles, and other details needed to generate similar questions.` : ''}${!images && imageFiles.length === 0 ? '\nIMAGE DESCRIPTION: [Provided in base question or notes]' : ''}
 
 SME NOTES:
 ${notes || 'None - No specific notes provided'}
@@ -153,6 +157,7 @@ CRITICAL REQUIREMENTS FOR IMAGE-BASED QUESTIONS:
    - The base question contains the complete question text with logic for correct answer and wrong options
    - Image description is provided between the question text and options (or in the image description field)
    - Image description includes detailed visual elements: sides, angles, equation of line/function for graph, table values, etc.
+   - ${imageFiles.length > 0 ? `UPLOADED IMAGES: ${imageFiles.length} image(s) have been uploaded as base64 data. Use these images as reference for understanding the visual elements, dimensions, angles, and other details. Generate similar questions based on these uploaded images.` : ''}
    - SME notes contain specific variations needed in copy questions and options, plus any constraints
 
 2. OUTPUT FORMAT - For EACH of the ${numQuestions} copy questions, you MUST provide:

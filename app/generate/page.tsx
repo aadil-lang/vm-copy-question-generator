@@ -20,6 +20,8 @@ function GeneratePageContent() {
   const [notes, setNotes] = useState('')
   const [solution, setSolution] = useState('')
   const [images, setImages] = useState('')
+  const [uploadedImages, setUploadedImages] = useState<File[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [model, setModel] = useState('gpt-4o')
   const [loading, setLoading] = useState(false)
   const [loadingText, setLoadingText] = useState('')
@@ -55,6 +57,11 @@ function GeneratePageContent() {
     }, 2000)
     
     try {
+      // Convert uploaded images to base64
+      const imageBase64Array = uploadedImages.length > 0 
+        ? await convertImagesToBase64(uploadedImages)
+        : []
+      
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: {
@@ -66,6 +73,7 @@ function GeneratePageContent() {
           notes,
           solution,
           images,
+          imageFiles: imageBase64Array,
           model,
           questionType: questionType || null,
         }),
@@ -137,11 +145,63 @@ function GeneratePageContent() {
     setSelectedQuestions(newSelected)
   }
   
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+    
+    const newFiles = Array.from(files)
+    const validFiles = newFiles.filter(file => {
+      const isValidType = file.type.startsWith('image/')
+      const isValidSize = file.size <= 10 * 1024 * 1024 // 10MB limit
+      return isValidType && isValidSize
+    })
+    
+    if (validFiles.length !== newFiles.length) {
+      setError('Some files were rejected. Only image files under 10MB are allowed.')
+      setTimeout(() => setError(''), 5000)
+    }
+    
+    setUploadedImages(prev => [...prev, ...validFiles])
+    
+    // Create previews
+    validFiles.forEach(file => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImagePreviews(prev => [...prev, reader.result as string])
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+  
+  const removeImage = (index: number) => {
+    setUploadedImages(prev => prev.filter((_, i) => i !== index))
+    setImagePreviews(prev => prev.filter((_, i) => i !== index))
+  }
+  
+  const convertImagesToBase64 = async (files: File[]): Promise<string[]> => {
+    const base64Promises = files.map(file => {
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          const base64String = reader.result as string
+          resolve(base64String)
+        }
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+    })
+    return Promise.all(base64Promises)
+  }
+  
   return (
     <div className="container">
-      <header>
-        <div className="header-top">
-          <div className="logo-container">
+      <header style={{ padding: '40px 30px', minHeight: '180px', position: 'relative' }}>
+        <Link href="/" className="btn btn-secondary" style={{ position: 'absolute', top: '20px', left: '30px' }}>
+          ← Back to Home
+        </Link>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', marginTop: '10px' }}>
+          <div style={{ flex: '1' }}></div>
+          <div className="logo-container" style={{ flex: '1', display: 'flex', justifyContent: 'center' }}>
             <img
               src="https://cf.quizizz.com/practice/branding/VoyageMathPremium.png"
               alt="VM Logo"
@@ -155,7 +215,7 @@ function GeneratePageContent() {
               }}
             />
           </div>
-          <div className="wayground-container">
+          <div className="wayground-container" style={{ flex: '1', display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-start', marginTop: '-48px' }}>
             <img
               src="https://cdn.prod.website-files.com/68355113496452bf05789e95/68480ff9c322e13a2f937a22_Logo_Dark_Primary_Horizontal_MINIMUM.svg"
               alt="Wayground Logo"
@@ -173,7 +233,7 @@ function GeneratePageContent() {
             />
           </div>
         </div>
-        <h1>{pageTitle}</h1>
+        <h1 style={{ textAlign: 'center', marginTop: '20px' }}>{pageTitle}</h1>
       </header>
       
       <main>
@@ -191,30 +251,90 @@ function GeneratePageContent() {
           </div>
           
           {questionType === 'image-based' && (
-            <div className="form-group">
-              <label htmlFor="images">Images (if any)</label>
-              <input
-                type="text"
-                id="images"
-                value={images}
-                onChange={(e) => setImages(e.target.value)}
-                placeholder="Enter image URLs (comma-separated)"
-              />
-            </div>
+            <>
+              <div className="form-group">
+                <label htmlFor="images">Image Description (if any)</label>
+                <input
+                  type="text"
+                  id="images"
+                  value={images}
+                  onChange={(e) => setImages(e.target.value)}
+                  placeholder="Enter image description or URLs (comma-separated)"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="imageUpload">Upload Images</label>
+                <input
+                  type="file"
+                  id="imageUpload"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageUpload}
+                  style={{ display: 'none' }}
+                />
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById('imageUpload')?.click()}
+                    className="btn btn-secondary"
+                    style={{ marginBottom: '10px' }}
+                  >
+                    📷 Upload Images
+                  </button>
+                  {uploadedImages.length > 0 && (
+                    <span style={{ color: '#666', fontSize: '14px' }}>
+                      {uploadedImages.length} image{uploadedImages.length > 1 ? 's' : ''} selected
+                    </span>
+                  )}
+                </div>
+                
+                {imagePreviews.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '10px' }}>
+                    {imagePreviews.map((preview, index) => (
+                      <div key={index} style={{ position: 'relative', display: 'inline-block' }}>
+                        <img
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          style={{
+                            width: '100px',
+                            height: '100px',
+                            objectFit: 'cover',
+                            border: '1px solid #ddd',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          style={{
+                            position: 'absolute',
+                            top: '-8px',
+                            right: '-8px',
+                            background: '#ff4444',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: '24px',
+                            height: '24px',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          title="Remove image"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
           )}
-          
-          <div className="form-group">
-            <label htmlFor="numCopyQuestions">Number of Copy Questions *</label>
-            <input
-              type="number"
-              id="numCopyQuestions"
-              value={numCopyQuestions}
-              onChange={(e) => setNumCopyQuestions(parseInt(e.target.value, 10))}
-              min={1}
-              max={20}
-              required
-            />
-          </div>
           
           <div className="form-group">
             <label htmlFor="notes">SME Notes</label>
@@ -238,44 +358,62 @@ function GeneratePageContent() {
             />
           </div>
           
-          <div className="form-group">
-            <label htmlFor="model">LLM Model *</label>
-            <select
-              id="model"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              required
-            >
-              <option value="gpt-5">GPT-5</option>
-              <option value="gpt-4o">GPT-4o</option>
-              <option value="gpt-4-turbo">GPT-4 Turbo</option>
-              <option value="gpt-4">GPT-4</option>
-            </select>
+          <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-end' }}>
+            <div className="form-group" style={{ flex: '1', maxWidth: '200px' }}>
+              <label htmlFor="numCopyQuestions">Number of Copy Questions *</label>
+              <input
+                type="number"
+                id="numCopyQuestions"
+                value={numCopyQuestions}
+                onChange={(e) => setNumCopyQuestions(parseInt(e.target.value, 10))}
+                min={1}
+                max={20}
+                required
+                style={{ width: '100%' }}
+              />
+            </div>
+            
+            <div className="form-group" style={{ flex: '1', maxWidth: '200px' }}>
+              <label htmlFor="model">LLM Model *</label>
+              <select
+                id="model"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                required
+                style={{ width: '100%' }}
+              >
+                <option value="gpt-5">GPT-5</option>
+                <option value="gpt-4o">GPT-4o</option>
+                <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                <option value="gpt-4">GPT-4</option>
+              </select>
+            </div>
           </div>
           
-          <div className="button-group">
-            <button type="submit" className="btn btn-primary" disabled={loading}>
+          <div className="button-group" style={{ flexDirection: 'column', gap: '10px' }}>
+            <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%' }}>
               Generate Questions
             </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={copySelected}
-              disabled={selectedQuestions.size === 0 || loading}
-            >
-              Copy Selected ({selectedQuestions.size})
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={copyAll}
-              disabled={questions.length === 0 || loading}
-            >
-              Copy All Questions
-            </button>
-            <Link href="/" className="btn btn-secondary">
-              ← Back to Home
-            </Link>
+            <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={copySelected}
+                disabled={selectedQuestions.size === 0 || loading}
+                style={{ flex: '1' }}
+              >
+                Copy Selected ({selectedQuestions.size})
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={copyAll}
+                disabled={questions.length === 0 || loading}
+                style={{ flex: '1' }}
+              >
+                Copy All Questions
+              </button>
+            </div>
           </div>
         </form>
         
