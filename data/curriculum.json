@@ -1,0 +1,488 @@
+{
+  "COMMON_CORE": {
+    "Kindergarten": [
+      "Counting and Cardinality",
+      "Know number names and count sequence",
+      "Count to tell number of objects",
+      "Compare numbers",
+      "Operations and Algebraic Thinking",
+      "Understand addition",
+      "Understand subtraction",
+      "Number and Operations in Base Ten",
+      "Geometry"
+    ],
+    "Grade_1": [
+      "Operations and Algebraic Thinking",
+      "Represent and solve problems",
+      "Understand and apply properties",
+      "Add and subtract within 20",
+      "Number and Operations in Base Ten",
+      "Extend counting sequence",
+      "Place value",
+      "Measurement and Data",
+      "Geometry"
+    ],
+    "Grade_2": [
+      "Operations and Algebraic Thinking",
+      "Add and subtract within 20",
+      "Work with equal groups",
+      "Number and Operations in Base Ten",
+      "Understand place value",
+      "Add and subtract within 100",
+      "Measurement and Data",
+      "Geometry"
+    ],
+    "Grade_3": [
+      "Operations and Algebraic Thinking",
+      "Represent and solve problems",
+      "Understand properties of multiplication",
+      "Multiply and divide within 100",
+      "Number and Operations in Base Ten",
+      "Number and Operations - Fractions",
+      "Measurement and Data",
+      "Geometry"
+    ],
+    "Grade_4": [
+      "Operations and Algebraic Thinking",
+      "Number and Operations in Base Ten",
+      "Generalize place value understanding",
+      "Use place value understanding",
+      "Number and Operations - Fractions",
+      "Measurement and Data",
+      "Geometry"
+    ],
+    "Grade_5": [
+      "Operations and Algebraic Thinking",
+      "Number and Operations in Base Ten",
+      "Number and Operations - Fractions",
+      "Measurement and Data",
+      "Geometry"
+    ],
+    "Grade_6": [
+      "Ratios and Proportional Relationships",
+      "The Number System",
+      "Expressions and Equations",
+      "Geometry",
+      "Statistics and Probability"
+    ],
+    "Grade_7": [
+      "Ratios and Proportional Relationships",
+      "The Number System",
+      "Expressions and Equations",
+      "Geometry",
+      "Statistics and Probability"
+    ],
+    "Grade_8": [
+      "The Number System",
+      "Expressions and Equations",
+      "Functions",
+      "Geometry",
+      "Statistics and Probability"
+    ],
+    "Grade_9": [
+      "The Real Number System",
+      "Quantities",
+      "The Complex Number System",
+      "Seeing Structure in Expressions",
+      "Arithmetic with Polynomials and Rational Expressions",
+      "Creating Equations",
+      "Reasoning with Equations and Inequalities",
+      "Interpreting Functions",
+      "Building Functions",
+      "Linear, Quadratic, and Exponential Models",
+      "Trigonometric Functions"
+    ],
+    "Grade_10": [
+      "Number and Quantity",
+      "Algebra",
+      "Functions",
+      "Modeling",
+      "Geometry",
+      "Statistics and Probability"
+    ],
+    "Grade_11": [
+      "Number and Quantity",
+      "Algebra",
+      "Functions",
+      "Modeling",
+      "Geometry",
+      "Statistics and Probability",
+      "Advanced Topics"
+    ],
+    "Grade_12": [
+      "Number and Quantity",
+      "Algebra",
+      "Functions",
+      "Modeling",
+      "Geometry",
+      "Statistics and Probability",
+      "Advanced Topics"
+    ]
+  },
+  "TEKS": {
+    "Kindergarten": [
+      "Mathematical Process Standards",
+      "Number and Operations",
+      "Number and Operations - Algebraic Reasoning",
+      "Number and Operations - Algebraic Methods",
+      "Geometry and Measurement",
+      "Data Analysis",
+      "Personal Financial Literacy"
+    ],
+    "Grade_1": [
+      "Mathematical Process Standards",
+      "Number and Operations",
+      "Number and Operations - Algebraic Reasoning",
+      "Geometry and Measurement",
+      "Data Analysis",
+      "Personal Financial Literacy"
+    ],
+    "Grade_2": [
+      "Mathematical Process Standards",
+      "Number and Operations",
+      "Number and Operations - Algebraic Reasoning",
+      "Geometry and Measurement",
+      "Data Analysis",
+      "Personal Financial Literacy"
+    ],
+    "Grade_3": [
+      "Mathematical Process Standards",
+      "Number and Operations",
+      "Number and Operations - Algebraic Reasoning",
+      "Geometry and Measurement",
+      "Data Analysis",
+      "Personal Financial Literacy"
+    ],
+    "Grade_4": [
+      "Mathematical Process Standards",
+      "Number and Operations",
+      "Number and Operations - Algebraic Reasoning",
+      "Number and Operations - Fractional Concepts",
+      "Geometry and Measurement",
+      "Data Analysis",
+      "Personal Financial Literacy"
+    ],
+    "Grade_5": [
+      "Mathematical Process Standards",
+      "Number and Operations",
+      "Number and Operations - Algebraic Reasoning",
+      "Number and Operations - Fractional Concepts",
+      "Geometry and Measurement",
+      "Data Analysis",
+      "Personal Financial Literacy"
+    ],
+    "Grade_6": [
+      "Mathematical Process Standards",
+      "Number and Operations",
+      "Proportionality",
+      "Expressions, Equations, and Relationships",
+      "Measurement and Data",
+      "Personal Financial Literacy"
+    ],
+    "Grade_7": [
+      "Mathematical Process Standards",
+      "Number and Operations",
+      "Proportionality",
+      "Expressions, Equations, and Relationships",
+      "Measurement and Data",
+      "Personal Financial Literacy"
+    ],
+    "Grade_8": [
+      "Mathematical Process Standards",
+      "Number and Operations",
+      "Proportionality",
+      "Expressions, Equations, and Relationships",
+      "Two-Dimensional Shapes",
+      "Measurement and Data",
+      "Personal Financial Literacy"
+    ],
+    "Grade_9": [
+      "Algebra I - Mathematical Process Standards",
+      "Linear Functions",
+      "Quadratic Functions",
+      "Exponential Functions",
+      "Number and Algebraic Methods"
+    ],
+    "Grade_10": [
+      "Geometry - Mathematical Process Standards",
+      "Coordinate and Transformational Geometry",
+      "Logical Argument and Constructions",
+      "Proof and Congruence",
+      "Similarity, Proof, and Trigonometry",
+      "Two-Dimensional and Three-Dimensional Figures",
+      "Circles",
+      "Probability"
+    ],
+    "Grade_11": [
+      "Algebra II - Mathematical Process Standards",
+      "Number and Algebraic Methods",
+      "Quadratic Functions",
+      "Square Root Functions",
+      "Rational Functions",
+      "Exponential and Logarithmic Functions"
+    ],
+    "Grade_12": [
+      "Precalculus",
+      "Mathematical Process Standards",
+      "Functions and Graphs",
+      "Trigonometric and Circular Functions",
+      "Analytic Geometry",
+      "Limits and Continuity"
+    ]
+  },
+  "VA_SOL": {
+    "Kindergarten": [
+      "Number and Number Sense",
+      "Computation and Estimation",
+      "Measurement and Geometry",
+      "Probability and Statistics",
+      "Patterns, Functions, and Algebra"
+    ],
+    "Grade_1": [
+      "Number and Number Sense",
+      "Computation and Estimation",
+      "Measurement and Geometry",
+      "Probability and Statistics",
+      "Patterns, Functions, and Algebra"
+    ],
+    "Grade_2": [
+      "Number and Number Sense",
+      "Computation and Estimation",
+      "Measurement and Geometry",
+      "Probability and Statistics",
+      "Patterns, Functions, and Algebra"
+    ],
+    "Grade_3": [
+      "Number and Number Sense",
+      "Computation and Estimation",
+      "Measurement and Geometry",
+      "Probability and Statistics",
+      "Patterns, Functions, and Algebra"
+    ],
+    "Grade_4": [
+      "Number and Number Sense",
+      "Computation and Estimation",
+      "Measurement and Geometry",
+      "Probability and Statistics",
+      "Patterns, Functions, and Algebra"
+    ],
+    "Grade_5": [
+      "Number and Number Sense",
+      "Computation and Estimation",
+      "Measurement and Geometry",
+      "Probability and Statistics",
+      "Patterns, Functions, and Algebra"
+    ],
+    "Grade_6": [
+      "Number and Number Sense",
+      "Computation and Estimation",
+      "Measurement and Geometry",
+      "Probability and Statistics",
+      "Patterns, Functions, and Algebra"
+    ],
+    "Grade_7": [
+      "Number and Number Sense",
+      "Computation and Estimation",
+      "Measurement and Geometry",
+      "Probability and Statistics",
+      "Patterns, Functions, and Algebra"
+    ],
+    "Grade_8": [
+      "Number and Number Sense",
+      "Computation and Estimation",
+      "Measurement and Geometry",
+      "Probability and Statistics",
+      "Patterns, Functions, and Algebra"
+    ],
+    "Grade_9": [
+      "Algebra I",
+      "Functions and Statistics"
+    ],
+    "Grade_10": [
+      "Geometry",
+      "Coordinate Geometry",
+      "Transformations"
+    ],
+    "Grade_11": [
+      "Algebra II",
+      "Advanced Functions"
+    ],
+    "Grade_12": [
+      "Precalculus",
+      "Calculus"
+    ]
+  },
+  "FL_BEST": {
+    "Kindergarten": [
+      "Number Sense and Operations",
+      "Algebraic Reasoning",
+      "Geometric Reasoning",
+      "Measurement",
+      "Data Analysis and Probability"
+    ],
+    "Grade_1": [
+      "Number Sense and Operations",
+      "Algebraic Reasoning",
+      "Geometric Reasoning",
+      "Measurement",
+      "Data Analysis and Probability"
+    ],
+    "Grade_2": [
+      "Number Sense and Operations",
+      "Algebraic Reasoning",
+      "Geometric Reasoning",
+      "Measurement",
+      "Data Analysis and Probability"
+    ],
+    "Grade_3": [
+      "Number Sense and Operations",
+      "Algebraic Reasoning",
+      "Fractional Reasoning",
+      "Geometric Reasoning",
+      "Measurement",
+      "Data Analysis and Probability"
+    ],
+    "Grade_4": [
+      "Number Sense and Operations",
+      "Algebraic Reasoning",
+      "Fractional Reasoning",
+      "Geometric Reasoning",
+      "Measurement",
+      "Data Analysis and Probability"
+    ],
+    "Grade_5": [
+      "Number Sense and Operations",
+      "Algebraic Reasoning",
+      "Fractional Reasoning",
+      "Geometric Reasoning",
+      "Measurement",
+      "Data Analysis and Probability"
+    ],
+    "Grade_6": [
+      "Number Sense and Operations",
+      "Algebraic Reasoning",
+      "Geometric Reasoning",
+      "Measurement",
+      "Data Analysis and Probability"
+    ],
+    "Grade_7": [
+      "Number Sense and Operations",
+      "Algebraic Reasoning",
+      "Geometric Reasoning",
+      "Measurement",
+      "Data Analysis and Probability"
+    ],
+    "Grade_8": [
+      "Number Sense and Operations",
+      "Algebraic Reasoning",
+      "Geometric Reasoning",
+      "Measurement",
+      "Data Analysis and Probability",
+      "Functions"
+    ],
+    "Grade_9": [
+      "Algebra I"
+    ],
+    "Grade_10": [
+      "Geometry"
+    ],
+    "Grade_11": [
+      "Algebra II"
+    ],
+    "Grade_12": [
+      "Precalculus"
+    ]
+  },
+  "CA_CCSS": {
+    "Kindergarten": [
+      "Counting and Cardinality",
+      "Operations and Algebraic Thinking",
+      "Number and Operations in Base Ten",
+      "Measurement and Data",
+      "Geometry"
+    ],
+    "Grade_1": [
+      "Operations and Algebraic Thinking",
+      "Number and Operations in Base Ten",
+      "Measurement and Data",
+      "Geometry"
+    ],
+    "Grade_2": [
+      "Operations and Algebraic Thinking",
+      "Number and Operations in Base Ten",
+      "Measurement and Data",
+      "Geometry"
+    ],
+    "Grade_3": [
+      "Operations and Algebraic Thinking",
+      "Number and Operations in Base Ten",
+      "Number and Operations - Fractions",
+      "Measurement and Data",
+      "Geometry"
+    ],
+    "Grade_4": [
+      "Operations and Algebraic Thinking",
+      "Number and Operations in Base Ten",
+      "Number and Operations - Fractions",
+      "Measurement and Data",
+      "Geometry"
+    ],
+    "Grade_5": [
+      "Operations and Algebraic Thinking",
+      "Number and Operations in Base Ten",
+      "Number and Operations - Fractions",
+      "Measurement and Data",
+      "Geometry"
+    ],
+    "Grade_6": [
+      "Ratios and Proportional Relationships",
+      "The Number System",
+      "Expressions and Equations",
+      "Geometry",
+      "Statistics and Probability"
+    ],
+    "Grade_7": [
+      "Ratios and Proportional Relationships",
+      "The Number System",
+      "Expressions and Equations",
+      "Geometry",
+      "Statistics and Probability"
+    ],
+    "Grade_8": [
+      "The Number System",
+      "Expressions and Equations",
+      "Functions",
+      "Geometry",
+      "Statistics and Probability"
+    ],
+    "Grade_9": [
+      "Number and Quantity",
+      "Algebra",
+      "Functions",
+      "Geometry",
+      "Statistics and Probability"
+    ],
+    "Grade_10": [
+      "Number and Quantity",
+      "Algebra",
+      "Functions",
+      "Geometry",
+      "Statistics and Probability"
+    ],
+    "Grade_11": [
+      "Number and Quantity",
+      "Algebra",
+      "Functions",
+      "Geometry",
+      "Statistics and Probability"
+    ],
+    "Grade_12": [
+      "Number and Quantity",
+      "Algebra",
+      "Functions",
+      "Geometry",
+      "Statistics and Probability"
+    ]
+  }
+}
+

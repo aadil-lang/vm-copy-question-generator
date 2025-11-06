@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copy Question Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-top">
+                <div class="logo-container">
+                    <img src="https://cf.quizizz.com/practice/branding/VoyageMathPremium.png" alt="VM Logo" class="logo" onerror="handleLogoError(this)">
+                </div>
+                <div class="wayground-container">
+                    <img src="https://cdn.prod.website-files.com/68355113496452bf05789e95/68480ff9c322e13a2f937a22_Logo_Dark_Primary_Horizontal_MINIMUM.svg" alt="Wayground Logo" class="wayground-logo" onerror="handleWaygroundLogoError(this)">
+                </div>
+            </div>
+            <h1 id="pageTitle">Copy Question Generator</h1>
+        </header>
+
+        <main>
+            <form id="questionForm" class="form-container">
+                <!-- 1. Enter Base Question -->
+                <div class="form-group">
+                    <label for="baseQuestion">Enter Base Question *</label>
+                    <textarea id="baseQuestion" name="baseQuestion" rows="4" required placeholder="Enter your base question here..."></textarea>
+                </div>
+
+                <!-- 2. Images (if any) - Only shown for image-based questions -->
+                <div class="form-group" id="imagesField" style="display: none;">
+                    <label for="images">Images (if any)</label>
+                    <input type="text" id="images" name="images" placeholder="Enter image URLs (comma-separated) or upload images">
+                    <input type="file" id="imageUpload" name="imageUpload" accept="image/jpeg,image/jpg,image/png" multiple>
+                    <div id="imagePreview" class="image-preview"></div>
+                    <div id="urlImagePreview" class="image-preview"></div>
+                </div>
+
+                <!-- 3. Number of Copy Questions -->
+                <div class="form-group">
+                    <label for="numCopyQuestions">Number of Copy Questions *</label>
+                    <input type="number" id="numCopyQuestions" name="numCopyQuestions" min="1" max="20" value="5" required>
+                </div>
+
+                <!-- 4. SME Notes -->
+                <div class="form-group">
+                    <label for="notes">SME Notes</label>
+                    <textarea id="notes" name="notes" rows="3" placeholder="Enter any notes related to the base question to be followed for creating copy questions..."></textarea>
+                </div>
+
+                <!-- 5. Solution Breakdown -->
+                <div class="form-group">
+                    <label for="solution">Solution Breakdown (if any)</label>
+                    <textarea id="solution" name="solution" rows="4" placeholder="Enter the solution breakdown/steps for the base question. This will be used to generate solutions for copy questions..."></textarea>
+                </div>
+
+                <!-- 6. LLM Model -->
+                <div class="form-group">
+                    <label for="model">LLM Model *</label>
+                    <select id="model" name="model" required>
+                        <option value="gpt-5" selected>GPT-5</option>
+                        <option value="gpt-4o">GPT-4o</option>
+                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                        <option value="gpt-4">GPT-4</option>
+                    </select>
+                </div>
+
+                <div class="button-group">
+                    <button type="submit" id="generateBtn" class="btn btn-primary">Generate Questions</button>
+                    <button type="button" id="copySelectedBtn" class="btn btn-secondary" disabled>Copy Selected (0)</button>
+                    <button type="button" id="copyAllBtn" class="btn btn-secondary" disabled>Copy All Questions</button>
+                    <a href="/" class="btn btn-secondary" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">← Back to Home</a>
+                </div>
+            </form>
+
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p id="loadingText">Generating questions...</p>
+            </div>
+
+            <div id="results" class="results hidden">
+                <h2>Generated Copy Questions</h2>
+                <div id="questionsContainer"></div>
+            </div>
+
+            <div id="error" class="error hidden"></div>
+        </main>
+    </div>
+
+    <script>
+        // Handle logo loading error - try alternative sources
+        function handleLogoError(img) {
+            // Fallback to local logo if available
+            img.src = 'static/images/logo.png';
+            img.onerror = function() {
+                this.style.display = 'none';
+            };
+        }
+        
+        // Handle Wayground logo loading error
+        function handleWaygroundLogoError(img) {
+            // Fallback to local wayground logo if available
+            img.src = 'static/images/wayground-logo.svg';
+            img.onerror = function() {
+                // Try PNG fallback
+                this.src = 'static/images/wayground-logo.png';
+                this.onerror = function() {
+                    // If all fail, just hide the image
+                    this.style.display = 'none';
+                };
+            };
+        }
+
+        // Get question type from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const questionType = urlParams.get('type');
+        
+        // Store question type for use in form submission
+        if (questionType) {
+            window.questionType = questionType;
+            console.log('Question type:', questionType);
+            
+            // Update page title based on question type
+            const pageTitle = document.getElementById('pageTitle');
+            if (pageTitle) {
+                if (questionType === 'mathematical') {
+                    pageTitle.textContent = 'Mathematical Questions';
+                } else if (questionType === 'image-based') {
+                    pageTitle.textContent = 'Image based Questions';
+                } else if (questionType === 'word-problems') {
+                    pageTitle.textContent = 'Word Problems';
+                }
+            }
+            
+            // Show/hide images field based on question type
+            const imagesField = document.getElementById('imagesField');
+            if (imagesField) {
+                // Only show images field for image-based questions
+                if (questionType === 'image-based') {
+                    imagesField.style.display = 'block';
+                } else {
+                    imagesField.style.display = 'none';
+                    // Clear any existing image values
+                    document.getElementById('images').value = '';
+                    document.getElementById('imageUpload').value = '';
+                    document.getElementById('imagePreview').innerHTML = '';
+                    document.getElementById('urlImagePreview').innerHTML = '';
+                }
+            }
+        } else {
+            // If no type specified, default to hiding images field
+            const imagesField = document.getElementById('imagesField');
+            if (imagesField) {
+                imagesField.style.display = 'none';
+            }
+        }
+    </script>
+    <script src="static/js/main.js"></script>
+</body>
+</html>
+

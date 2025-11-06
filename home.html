@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copy Question Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="static/css/style.css">
+    <style>
+        .homepage-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .homepage-header {
+            margin-bottom: 60px;
+        }
+
+        .homepage-header h1 {
+            font-family: 'Nunito', sans-serif;
+            font-size: 3em;
+            color: #5a2d7a;
+            margin-bottom: 20px;
+            animation: fadeInDown 0.6s ease-out;
+        }
+
+        .homepage-header p {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 40px;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .homepage-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .homepage-btn {
+            padding: 40px 30px;
+            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-size: 1.5em;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: block;
+            transition: all 0.3s ease;
+            box-shadow: 
+                0 10px 30px rgba(74, 144, 226, 0.4),
+                0 4px 10px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            border-bottom: 4px solid #2d5d8c;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+            transform-style: preserve-3d;
+            animation: slideInUp 0.8s ease-out;
+        }
+
+        .homepage-btn:nth-child(1) { animation-delay: 0.1s; }
+        .homepage-btn:nth-child(2) { animation-delay: 0.2s; }
+        .homepage-btn:nth-child(3) { animation-delay: 0.3s; }
+
+        .homepage-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 100%);
+            border-radius: 20px;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .homepage-btn::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 30%;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0) 100%);
+            border-radius: 0 0 20px 20px;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .homepage-btn:hover {
+            transform: translateY(-8px) rotateX(5deg);
+            box-shadow: 
+                0 15px 40px rgba(74, 144, 226, 0.6),
+                0 6px 15px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            background: linear-gradient(135deg, #5ba0f2 0%, #4580cd 100%);
+        }
+
+        .homepage-btn:active {
+            transform: translateY(-4px) rotateX(2deg);
+            box-shadow: 
+                0 5px 15px rgba(74, 144, 226, 0.4),
+                inset 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        .homepage-btn.mathematical {
+            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+        }
+
+        .homepage-btn.image-based {
+            background: linear-gradient(135deg, #e24a90 0%, #bd357a 100%);
+        }
+
+        .homepage-btn.image-based:hover {
+            background: linear-gradient(135deg, #f25ba0 0%, #cd4580 100%);
+        }
+
+        .homepage-btn.word-problems {
+            background: linear-gradient(135deg, #90e24a 0%, #7abd35 100%);
+        }
+
+        .homepage-btn.word-problems:hover {
+            background: linear-gradient(135deg, #a0f25b 0%, #80cd45 100%);
+        }
+
+        .homepage-btn-icon {
+            font-size: 3em;
+            margin-top: 15px;
+            display: block;
+        }
+
+        .word-problems-icon {
+            font-size: 4.5em !important;
+            margin-top: 10px;
+        }
+
+        .image-previews {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .preview-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            padding: 8px;
+            pointer-events: none;
+        }
+
+
+        .preview-item svg {
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="homepage-container">
+        <div class="homepage-header">
+            <div class="header-top">
+                <div class="logo-container">
+                    <img src="https://cf.quizizz.com/practice/branding/VoyageMathPremium.png" alt="VM Logo" class="logo" onerror="handleLogoError(this)">
+                </div>
+                <div class="wayground-container">
+                    <img src="https://cdn.prod.website-files.com/68355113496452bf05789e95/68480ff9c322e13a2f937a22_Logo_Dark_Primary_Horizontal_MINIMUM.svg" alt="Wayground Logo" class="wayground-logo" onerror="handleWaygroundLogoError(this)">
+                </div>
+            </div>
+            <h1>Copy Question Generator</h1>
+            <p>Select the type of questions you want to generate</p>
+        </div>
+
+        <div class="homepage-buttons">
+            <a href="/generate?type=mathematical" class="homepage-btn mathematical">
+                <span>Mathematical Questions</span>
+                <div class="image-previews">
+                    <div class="preview-item">
+                        <svg width="50" height="50" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Addition symbol (+) -->
+                            <line x1="25" y1="15" x2="25" y2="35" stroke="white" stroke-width="3" stroke-linecap="round"/>
+                            <line x1="15" y1="25" x2="35" y2="25" stroke="white" stroke-width="3" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="preview-item">
+                        <svg width="50" height="50" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Subtraction symbol (-) -->
+                            <line x1="15" y1="25" x2="35" y2="25" stroke="white" stroke-width="3" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="preview-item">
+                        <svg width="50" height="50" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Multiplication symbol (×) -->
+                            <line x1="15" y1="15" x2="35" y2="35" stroke="white" stroke-width="3" stroke-linecap="round"/>
+                            <line x1="35" y1="15" x2="15" y2="35" stroke="white" stroke-width="3" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="preview-item">
+                        <svg width="50" height="50" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Division symbol (÷) -->
+                            <circle cx="25" cy="15" r="2" fill="white"/>
+                            <line x1="15" y1="25" x2="35" y2="25" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                            <circle cx="25" cy="35" r="2" fill="white"/>
+                        </svg>
+                    </div>
+                </div>
+            </a>
+            <a href="/generate?type=image-based" class="homepage-btn image-based">
+                <span>Image based Questions</span>
+                <div class="image-previews">
+                    <div class="preview-item">
+                        <svg width="50" height="50" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Circle -->
+                            <circle cx="12" cy="12" r="8" stroke="white" stroke-width="1.5" fill="rgba(255,255,255,0.2)"/>
+                            <!-- Rectangle -->
+                            <rect x="22" y="4" width="10" height="16" stroke="white" stroke-width="1.5" fill="rgba(255,255,255,0.2)"/>
+                            <!-- Triangle -->
+                            <polygon points="38,4 45,20 31,20" stroke="white" stroke-width="1.5" fill="rgba(255,255,255,0.2)"/>
+                            <!-- Square -->
+                            <rect x="8" y="24" width="10" height="10" stroke="white" stroke-width="1.5" fill="rgba(255,255,255,0.2)"/>
+                            <!-- Pentagon -->
+                            <polygon points="25,28 30,22 35,24 34,30 26,30" stroke="white" stroke-width="1.5" fill="rgba(255,255,255,0.2)"/>
+                        </svg>
+                    </div>
+                    <div class="preview-item">
+                        <svg width="50" height="50" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Grid lines -->
+                            <defs>
+                                <pattern id="grid" width="5" height="5" patternUnits="userSpaceOnUse">
+                                    <path d="M 5 0 L 0 0 0 5" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="0.5"/>
+                                </pattern>
+                            </defs>
+                            <rect width="50" height="50" fill="url(#grid)"/>
+                            <!-- Axes -->
+                            <line x1="5" y1="45" x2="45" y2="45" stroke="white" stroke-width="2"/>
+                            <line x1="5" y1="45" x2="5" y2="5" stroke="white" stroke-width="2"/>
+                            <!-- Grid lines -->
+                            <line x1="5" y1="35" x2="45" y2="35" stroke="rgba(255,255,255,0.5)" stroke-width="1"/>
+                            <line x1="5" y1="25" x2="45" y2="25" stroke="rgba(255,255,255,0.5)" stroke-width="1"/>
+                            <line x1="5" y1="15" x2="45" y2="15" stroke="rgba(255,255,255,0.5)" stroke-width="1"/>
+                            <line x1="15" y1="5" x2="15" y2="45" stroke="rgba(255,255,255,0.5)" stroke-width="1"/>
+                            <line x1="25" y1="5" x2="25" y2="45" stroke="rgba(255,255,255,0.5)" stroke-width="1"/>
+                            <line x1="35" y1="5" x2="35" y2="45" stroke="rgba(255,255,255,0.5)" stroke-width="1"/>
+                            <!-- Graph line -->
+                            <polyline points="10,40 15,30 20,25 25,20 30,15 35,12 40,10" stroke="white" stroke-width="2" fill="none"/>
+                        </svg>
+                    </div>
+                    <div class="preview-item">
+                        <svg width="50" height="50" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Number line -->
+                            <line x1="5" y1="25" x2="45" y2="25" stroke="white" stroke-width="2"/>
+                            <!-- Arrow -->
+                            <polygon points="45,25 40,22 40,28" fill="white"/>
+                            <!-- Tick marks and numbers -->
+                            <line x1="10" y1="20" x2="10" y2="30" stroke="white" stroke-width="1.5"/>
+                            <text x="8" y="38" fill="white" font-size="7" font-weight="bold">0</text>
+                            <line x1="20" y1="20" x2="20" y2="30" stroke="white" stroke-width="1.5"/>
+                            <text x="18" y="38" fill="white" font-size="7" font-weight="bold">5</text>
+                            <line x1="30" y1="20" x2="30" y2="30" stroke="white" stroke-width="1.5"/>
+                            <text x="28" y="38" fill="white" font-size="7" font-weight="bold">10</text>
+                            <line x1="40" y1="20" x2="40" y2="30" stroke="white" stroke-width="1.5"/>
+                            <text x="37" y="38" fill="white" font-size="7" font-weight="bold">15</text>
+                        </svg>
+                    </div>
+                    <div class="preview-item">
+                        <svg width="50" height="50" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Bar chart illustration -->
+                            <rect x="8" y="30" width="6" height="15" fill="rgba(255,255,255,0.7)"/>
+                            <rect x="17" y="20" width="6" height="25" fill="rgba(255,255,255,0.7)"/>
+                            <rect x="26" y="25" width="6" height="20" fill="rgba(255,255,255,0.7)"/>
+                            <rect x="35" y="15" width="6" height="30" fill="rgba(255,255,255,0.7)"/>
+                            <!-- Base line -->
+                            <line x1="5" y1="45" x2="45" y2="45" stroke="white" stroke-width="2"/>
+                        </svg>
+                    </div>
+                </div>
+            </a>
+            <a href="/generate?type=word-problems" class="homepage-btn word-problems">
+                <span>Word Problems</span>
+                <hr style="width: 80%; margin: 15px auto; border: none; border-top: 2px solid rgba(255, 255, 255, 0.5);">
+                <span class="homepage-btn-icon word-problems-icon">📝</span>
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Handle logo loading error
+        function handleLogoError(img) {
+            img.src = 'static/images/logo.png';
+            img.onerror = function() {
+                this.style.display = 'none';
+            };
+        }
+        
+        // Handle Wayground logo loading error
+        function handleWaygroundLogoError(img) {
+            img.src = 'static/images/wayground-logo.svg';
+            img.onerror = function() {
+                this.src = 'static/images/wayground-logo.png';
+                this.onerror = function() {
+                    this.style.display = 'none';
+                };
+            };
+        }
+    </script>
+</body>
+</html>
+
