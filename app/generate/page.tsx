@@ -244,6 +244,7 @@ function GeneratePageContent() {
               onChange={(e) => setModel(e.target.value)}
               required
             >
+              <option value="gpt-5">GPT-5</option>
               <option value="gpt-4o">GPT-4o</option>
               <option value="gpt-4-turbo">GPT-4 Turbo</option>
               <option value="gpt-4">GPT-4</option>

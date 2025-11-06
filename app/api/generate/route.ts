@@ -210,7 +210,7 @@ You MUST return an array with ${numQuestions} objects, starting with [ and endin
     }
     
     const apiParams: any = {
-      model: model === 'gpt-5' ? 'gpt-4o' : model, // Fallback if gpt-5 not available
+      model: model, // Supports gpt-5, gpt-4o, gpt-4-turbo, gpt-4
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -219,7 +219,19 @@ You MUST return an array with ${numQuestions} objects, starting with [ and endin
       temperature: 0.7,
     }
     
-    const response = await client.chat.completions.create(apiParams)
+    let response
+    try {
+      response = await client.chat.completions.create(apiParams)
+    } catch (error: any) {
+      // If gpt-5 is not available, fallback to gpt-4o
+      if (model === 'gpt-5' && (error?.message?.includes('model') || error?.code === 'model_not_found')) {
+        console.warn('GPT-5 not available, falling back to GPT-4o')
+        apiParams.model = 'gpt-4o'
+        response = await client.chat.completions.create(apiParams)
+      } else {
+        throw error
+      }
+    }
     
     if (!response.choices || response.choices.length === 0) {
       throw new Error('GPT returned empty response')
