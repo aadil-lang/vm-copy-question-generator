@@ -3,35 +3,35 @@ export function parseNumberOfOptions(baseQuestion: string): number {
   
   // Pattern 1: A), B), C), D) - letter followed by closing paren and space
   const pattern1 = /\b([A-Z])\)\s/gi
-  const matches1 = baseQuestion.matchAll(pattern1)
+  const matches1 = Array.from(baseQuestion.matchAll(pattern1))
   for (const match of matches1) {
     foundOptions.add(match[1].toUpperCase())
   }
   
   // Pattern 2: A. B. C. D. - letter followed by period and space
   const pattern2 = /\b([A-Z])\.\s/gi
-  const matches2 = baseQuestion.matchAll(pattern2)
+  const matches2 = Array.from(baseQuestion.matchAll(pattern2))
   for (const match of matches2) {
     foundOptions.add(match[1].toUpperCase())
   }
   
   // Pattern 3: (A), (B), (C), (D) - letter in parentheses
   const pattern3 = /\(([A-Z])\)/gi
-  const matches3 = baseQuestion.matchAll(pattern3)
+  const matches3 = Array.from(baseQuestion.matchAll(pattern3))
   for (const match of matches3) {
     foundOptions.add(match[1].toUpperCase())
   }
   
   // Pattern 4: Option A, Option B, Option C, Option D
   const pattern4 = /Option\s+([A-Z])[:\s]/gi
-  const matches4 = baseQuestion.matchAll(pattern4)
+  const matches4 = Array.from(baseQuestion.matchAll(pattern4))
   for (const match of matches4) {
     foundOptions.add(match[1].toUpperCase())
   }
   
   // Pattern 5: A) Text, B) Text (no space after paren)
   const pattern5 = /\b([A-Z])\)[^\s]/gi
-  const matches5 = baseQuestion.matchAll(pattern5)
+  const matches5 = Array.from(baseQuestion.matchAll(pattern5))
   for (const match of matches5) {
     foundOptions.add(match[1].toUpperCase())
   }
@@ -53,7 +53,7 @@ export function parseNumberOfOptions(baseQuestion: string): number {
   
   const numbers: number[] = []
   for (const pattern of numberedPatterns) {
-    const matches = baseQuestion.matchAll(pattern)
+    const matches = Array.from(baseQuestion.matchAll(pattern))
     for (const match of matches) {
       const num = parseInt(match[1], 10)
       if (!isNaN(num)) {
@@ -83,7 +83,7 @@ export function determineQuestionType(baseQuestion: string, notes?: string): 'wo
   const questionLower = baseQuestion.toLowerCase()
   let hasContext = wordProblemKeywords.some(keyword => questionLower.includes(keyword))
   
-  if (notes && ('context' in notes.toLowerCase() || 'real-life' in notes.toLowerCase())) {
+  if (notes && (notes.toLowerCase().includes('context') || notes.toLowerCase().includes('real-life'))) {
     hasContext = true
   }
   
