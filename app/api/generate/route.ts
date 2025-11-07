@@ -447,14 +447,28 @@ You MUST return an array with ${numQuestions} objects, starting with [ and endin
     const lastBracket = cleanedContent.lastIndexOf(']')
     
     if (firstBracket === -1 || lastBracket === -1 || lastBracket <= firstBracket) {
-      throw new Error('Failed to find JSON array in response')
+      console.error('Failed to find JSON array. Content preview:', cleanedContent.substring(0, 500))
+      throw new Error('Failed to find JSON array in response. The AI may not have returned questions in the expected format.')
     }
     
     const jsonContent = cleanedContent.substring(firstBracket, lastBracket + 1)
-    const parsed = JSON.parse(jsonContent)
+    let parsed
+    try {
+      parsed = JSON.parse(jsonContent)
+    } catch (parseError: any) {
+      console.error('JSON parse error:', parseError.message)
+      console.error('JSON content preview:', jsonContent.substring(0, 500))
+      throw new Error(`Failed to parse JSON response: ${parseError.message}. The AI response may be malformed.`)
+    }
     
     if (!Array.isArray(parsed)) {
-      throw new Error('Parsed JSON is not an array')
+      console.error('Parsed JSON is not an array. Type:', typeof parsed, 'Value:', parsed)
+      throw new Error('Parsed JSON is not an array. The AI may have returned a single object instead of an array.')
+    }
+    
+    if (parsed.length === 0) {
+      console.error('Parsed array is empty')
+      throw new Error('The AI returned an empty array. No questions were generated.')
     }
     
     // Validate and fix questions
@@ -501,9 +515,15 @@ You MUST return an array with ${numQuestions} objects, starting with [ and endin
         
         const optionText = option.text.trim()
         
-        // Skip placeholder text like "Option A", "Option B", etc.
-        if (optionText.match(/^Option\s+[A-Z]$/i) || optionText === '' || optionText.length < 2) {
+        // Skip placeholder text like "Option A", "Option B", etc., but allow short valid answers
+        if (optionText.match(/^Option\s+[A-Z]$/i) || optionText === '') {
           console.warn(`Question ${idx + 1}: Skipping placeholder or empty option: "${optionText}"`)
+          continue
+        }
+        
+        // Allow very short answers (like single digits, fractions, etc.) but log them
+        if (optionText.length < 1) {
+          console.warn(`Question ${idx + 1}: Skipping empty option`)
           continue
         }
         
@@ -580,7 +600,10 @@ You MUST return an array with ${numQuestions} objects, starting with [ and endin
     }
     
     if (validatedQuestions.length === 0) {
-      throw new Error('No valid questions were generated')
+      // Log the raw response for debugging
+      console.error('No valid questions were generated. Parsed response:', JSON.stringify(parsed, null, 2))
+      console.error('Original content length:', content?.length || 0)
+      throw new Error('No valid questions were generated. Please check the base question format and try again. If the issue persists, the generated questions may not match the required format.')
     }
     
     return validatedQuestions.slice(0, numQuestions)
