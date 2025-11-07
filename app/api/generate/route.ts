@@ -280,16 +280,52 @@ ${notes ? `SME NOTES (CRITICAL - MUST FOLLOW IN ADDITION TO ALL PROMPT INSTRUCTI
 ${notes}
 YOU MUST FOLLOW THE SME NOTES ABOVE IN ADDITION TO ALL OTHER INSTRUCTIONS. Incorporate any specific requirements, constraints, or guidelines from the SME notes into every generated question.\n` : ''}${solution ? `Base Solution: ${solution}\n` : ''}${imageInfo ? `${imageInfo}\n` : ''}
 
+CRITICAL REQUIREMENTS FOR OPTIONS AND CORRECT ANSWERS:
+
+1. OPTIONS FORMAT:
+   - Each option MUST have a "text" field containing a COMPLETE, MEANINGFUL answer (e.g., "5/12", "0.42", "3/4", "2.5")
+   - DO NOT use placeholder text like "Option A", "Option B", "Choice A", etc.
+   - Each option MUST be a real, complete answer that a student could choose
+   - Options should be in the same format as the base question's options (fractions, decimals, whole numbers, etc.)
+
+2. CORRECT ANSWER:
+   - ONE and ONLY ONE option per question MUST have "logic": "CA" (Correct Answer)
+   - The correct answer MUST be mathematically correct based on the question
+   - The correct answer MUST follow all SME notes requirements
+   - Mark the correct answer clearly with "CA" in the logic field
+
+3. INCORRECT OPTIONS (DISTRACTORS):
+   - Each incorrect option MUST have a "logic" field explaining the error
+   - Logic must be SHORT (3-6 words) describing the mistake
+   - Distractors should be based on ACTUAL ERRORS students would make
+   - Examples: "Added instead of multiplied", "Forgot to carry over", "Wrong denominator", "Calculation error"
+
+4. OPTIONS COUNT:
+   - Each question MUST have EXACTLY ${numOptions} options
+   - All ${numOptions} options must be complete and valid answers
+
 Rules:
 - CRITICAL: All SME notes provided above MUST be strictly followed. Incorporate any specific requirements, constraints, or guidelines from SME notes into every generated question.
 - Keep EXACTLY the SAME phrasing and structure, change ONLY the numbers
 - Each question MUST have EXACTLY ${numOptions} options (same as base question)
 - ONE option per question must be marked "CA" (Correct Answer)
-- Incorrect options logic must be SHORT (3-6 words) based on student errors
-- Examples: "CA", "Added instead of multiplied", "Forgot to carry over"
+- All options must be complete, meaningful answers - NOT placeholders
+
+EXAMPLE OF CORRECT FORMAT:
+{
+  "question": "Compare 3/4 and 2/3. Which is greater?",
+  "options": [
+    {"text": "3/4", "logic": "CA"},
+    {"text": "2/3", "logic": "Compared numerators only"},
+    {"text": "They are equal", "logic": "Incorrect comparison"},
+    {"text": "Cannot compare", "logic": "Wrong approach"}
+  ],
+  "image": "",
+  "solution": "Step-by-step solution..."
+}
 
 Return JSON array: [{"question": "...", "options": [{"text": "...", "logic": "..."}, ...], "image": "", "solution": "..."}, ...]
-Return ${numQuestions} questions. Each with ${numOptions} options.`
+Return ${numQuestions} questions. Each with EXACTLY ${numOptions} options.`
   } else {
     userPrompt = `${'='.repeat(80)}
 ⚠️⚠️⚠️ CRITICAL: YOU MUST GENERATE EXACTLY ${numQuestions} QUESTIONS ⚠️⚠️⚠️
@@ -506,7 +542,8 @@ You MUST return an array with ${numQuestions} objects, starting with [ and endin
       const validOptions = []
       let hasCorrectAnswer = false
       
-      for (const option of options) {
+      for (let optIdx = 0; optIdx < options.length; optIdx++) {
+        const option = options[optIdx]
         // Skip options without text or with empty/placeholder text
         if (!option || !option.text || typeof option.text !== 'string') {
           console.warn(`Question ${idx + 1}: Skipping invalid option:`, option)
@@ -527,23 +564,36 @@ You MUST return an array with ${numQuestions} objects, starting with [ and endin
           continue
         }
         
-        if (!option.logic) {
-          option.logic = 'Plausible distractor'
-        }
+        // Determine logic - check for correct answer markers
+        let optionLogic = option.logic || 'Plausible distractor'
+        const logicUpper = String(optionLogic).toUpperCase().trim()
         
-        const logicUpper = String(option.logic).toUpperCase()
-        if (logicUpper === 'CA' || logicUpper.includes('CORRECT') || logicUpper.includes('RIGHT')) {
-          if (!hasCorrectAnswer) {
-            option.logic = 'CA'
-            hasCorrectAnswer = true
-          } else {
-            option.logic = 'Plausible distractor'
-          }
+        // Check if this is marked as correct answer
+        const isCorrectAnswer = logicUpper === 'CA' || 
+                                logicUpper === 'CORRECT' ||
+                                logicUpper === 'CORRECT ANSWER' ||
+                                logicUpper.includes('CORRECT') ||
+                                logicUpper.includes('RIGHT') ||
+                                logicUpper === 'TRUE' ||
+                                (logicUpper.length === 0 && optIdx === 0 && !hasCorrectAnswer) // First option if no logic provided
+        
+        if (isCorrectAnswer && !hasCorrectAnswer) {
+          optionLogic = 'CA'
+          hasCorrectAnswer = true
+        } else if (isCorrectAnswer && hasCorrectAnswer) {
+          // Multiple correct answers - mark this as distractor
+          optionLogic = 'Plausible distractor'
+        } else if (!option.logic) {
+          // No logic provided - default to distractor
+          optionLogic = 'Plausible distractor'
+        } else {
+          // Keep original logic
+          optionLogic = option.logic
         }
         
         validOptions.push({
           text: optionText,
-          logic: option.logic
+          logic: optionLogic
         })
       }
       
