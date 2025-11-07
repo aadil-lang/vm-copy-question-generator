@@ -276,13 +276,18 @@ You MUST return an array with ${numQuestions} objects, starting with [ and endin
 
 Generate ${numQuestions} MCQ questions with ${numOptions} options each. Base Question: ${baseQuestion}
 
+${notes ? `SME NOTES (CRITICAL - MUST FOLLOW IN ADDITION TO ALL PROMPT INSTRUCTIONS):
+${notes}
+YOU MUST FOLLOW THE SME NOTES ABOVE IN ADDITION TO ALL OTHER INSTRUCTIONS. Incorporate any specific requirements, constraints, or guidelines from the SME notes into every generated question.\n` : ''}${solution ? `Base Solution: ${solution}\n` : ''}${imageInfo ? `${imageInfo}\n` : ''}
+
 Rules:
+- CRITICAL: All SME notes provided above MUST be strictly followed. Incorporate any specific requirements, constraints, or guidelines from SME notes into every generated question.
 - Keep EXACTLY the SAME phrasing and structure, change ONLY the numbers
 - Each question MUST have EXACTLY ${numOptions} options (same as base question)
 - ONE option per question must be marked "CA" (Correct Answer)
 - Incorrect options logic must be SHORT (3-6 words) based on student errors
 - Examples: "CA", "Added instead of multiplied", "Forgot to carry over"
-${notes ? `SME NOTES: ${notes}\n` : ''}${solution ? `Base Solution: ${solution}\n` : ''}${imageInfo ? `${imageInfo}\n` : ''}
+
 Return JSON array: [{"question": "...", "options": [{"text": "...", "logic": "..."}, ...], "image": "", "solution": "..."}, ...]
 Return ${numQuestions} questions. Each with ${numOptions} options.`
   } else {
