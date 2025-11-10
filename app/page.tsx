@@ -128,7 +128,7 @@ export default function Home() {
                 <rect x="31" y="15" width="6" height="25" fill="white" opacity="0.8"/>
               </svg>
             </div>
-          </div>
+            </div>
         </Link>
         <Link href="/generate?type=word-problems" className="homepage-btn word-problems">
           <span>Word Problems</span>

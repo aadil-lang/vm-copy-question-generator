@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, Suspense, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -28,6 +28,10 @@ function GeneratePageContent() {
   const [questions, setQuestions] = useState<Question[]>([])
   const [error, setError] = useState('')
   const [selectedQuestions, setSelectedQuestions] = useState<Set<number>>(new Set())
+  const [verifyingQuestions, setVerifyingQuestions] = useState<Set<number>>(new Set())
+  const [showSymbolToolbar, setShowSymbolToolbar] = useState(false)
+  const [history, setHistory] = useState<string[]>([''])
+  const [historyIndex, setHistoryIndex] = useState(0)
   
   const pageTitle = questionType === 'mathematical' 
     ? 'Mathematical Questions Generator'
@@ -70,7 +74,7 @@ function GeneratePageContent() {
         body: JSON.stringify({
           baseQuestion,
           numCopyQuestions,
-          notes,
+          notes: notes.trim(), // Trim whitespace to ensure empty string if only whitespace
           solution,
           images,
           imageFiles: imageBase64Array,
@@ -134,6 +138,174 @@ function GeneratePageContent() {
     }
     return text
   }
+
+  const verifyQuestion = async (index: number) => {
+    const question = questions[index]
+    if (!question) return
+
+    setVerifyingQuestions(prev => new Set(prev).add(index))
+    setError('')
+
+    try {
+      const response = await fetch('/api/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          question: question.question,
+          options: question.options,
+          solution: question.solution || '',
+          image: question.image || '',
+          model: model,
+          questionType: questionType || 'mathematical',
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to verify question')
+      }
+
+      if (data.verified && data.result) {
+        const result = data.result
+        
+        // Update the question if corrections were made
+        if (result.hasErrors) {
+          setQuestions(prev => {
+            const updated = [...prev]
+            // Ensure corrected options maintain the same count as original
+            let correctedOptions = result.correctedOptions || question.options
+            if (Array.isArray(correctedOptions) && correctedOptions.length !== question.options.length) {
+              // If count doesn't match, adjust to maintain original count
+              if (correctedOptions.length > question.options.length) {
+                correctedOptions = correctedOptions.slice(0, question.options.length)
+              } else if (correctedOptions.length < question.options.length) {
+                // Pad with original options if needed
+                const originalOptions = [...question.options]
+                const newOptions = [...correctedOptions]
+                while (newOptions.length < question.options.length) {
+                  const originalIndex = newOptions.length
+                  newOptions.push({
+                    text: originalOptions[originalIndex].text,
+                    logic: originalOptions[originalIndex].logic
+                  })
+                }
+                correctedOptions = newOptions
+              }
+            }
+            
+            updated[index] = {
+              question: result.correctedQuestion || question.question,
+              options: correctedOptions,
+              solution: result.correctedSolution || question.solution,
+              image: question.image,
+            }
+            return updated
+          })
+          
+          // Show success message with verification notes
+          const message = `Question verified and corrected!\n\nErrors found:\n${result.errors?.join('\n') || 'N/A'}\n\n${result.verificationNotes || ''}`
+          alert(message)
+        } else {
+          alert('Question verified successfully! No errors found.')
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to verify question')
+      setTimeout(() => setError(''), 5000)
+    } finally {
+      setVerifyingQuestions(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(index)
+        return newSet
+      })
+    }
+  }
+
+  const saveToHistory = (value: string) => {
+    const newHistory = history.slice(0, historyIndex + 1)
+    newHistory.push(value)
+    setHistory(newHistory)
+    setHistoryIndex(newHistory.length - 1)
+  }
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1
+      setHistoryIndex(newIndex)
+      setBaseQuestion(history[newIndex])
+    }
+  }
+
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1
+      setHistoryIndex(newIndex)
+      setBaseQuestion(history[newIndex])
+    }
+  }
+
+  const insertAtCursor = (text: string) => {
+    const textarea = document.getElementById('baseQuestion') as HTMLTextAreaElement
+    if (!textarea) return
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const currentValue = baseQuestion
+    const newValue = currentValue.substring(0, start) + text + currentValue.substring(end)
+    
+    setBaseQuestion(newValue)
+    saveToHistory(newValue)
+    
+    // Set cursor position after inserted text
+    setTimeout(() => {
+      textarea.focus()
+      const newCursorPos = start + text.length
+      textarea.setSelectionRange(newCursorPos, newCursorPos)
+    }, 0)
+  }
+
+  const handleBaseQuestionChange = (value: string) => {
+    setBaseQuestion(value)
+    saveToHistory(value)
+  }
+
+  const insertSymbol = (symbol: string) => {
+    insertAtCursor(symbol)
+  }
+
+  const mathSymbols = [
+    { label: '+', value: '+' },
+    { label: '−', value: '−' },
+    { label: '×', value: '×' },
+    { label: '÷', value: '÷' },
+    { label: '=', value: '=' },
+    { label: '≠', value: '≠' },
+    { label: '<', value: '<' },
+    { label: '>', value: '>' },
+    { label: '≤', value: '≤' },
+    { label: '≥', value: '≥' },
+    { label: '±', value: '±' },
+    { label: '√', value: '√' },
+    { label: '∛', value: '∛' },
+    { label: 'π', value: 'π' },
+    { label: '°', value: '°' },
+    { label: '²', value: '²' },
+    { label: '³', value: '³' },
+    { label: '∞', value: '∞' },
+    { label: '∑', value: '∑' },
+    { label: '∫', value: '∫' },
+    { label: '≈', value: '≈' },
+    { label: '∠', value: '∠' },
+    { label: '(', value: '(' },
+    { label: ')', value: ')' },
+    { label: '[', value: '[' },
+    { label: ']', value: ']' },
+    { label: '{', value: '{' },
+    { label: '}', value: '}' }
+  ]
   
   const toggleSelection = (index: number) => {
     const newSelected = new Set(selectedQuestions)
@@ -240,13 +412,192 @@ function GeneratePageContent() {
         <form onSubmit={handleSubmit} className="form-container">
           <div className="form-group">
             <label htmlFor="baseQuestion">Enter Base Question *</label>
+            
+            {/* Unified Toolbar */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+              marginBottom: '8px',
+              padding: '8px',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '6px',
+              border: '1px solid #e0e0e0'
+            }}>
+              {/* Toolbar Controls Row */}
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '6px',
+                alignItems: 'center',
+                marginBottom: showSymbolToolbar ? '6px' : '0',
+                paddingBottom: showSymbolToolbar ? '6px' : '0',
+                borderBottom: showSymbolToolbar ? '1px solid #e0e0e0' : 'none'
+              }}>
+                {/* Undo Button */}
+                <button
+                  type="button"
+                  onClick={undo}
+                  disabled={historyIndex <= 0}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    backgroundColor: historyIndex > 0 ? '#fff' : '#f0f0f0',
+                    color: historyIndex > 0 ? '#5a2d7a' : '#999',
+                    border: '1px solid #ccc',
+                    borderRadius: '3px',
+                    cursor: historyIndex > 0 ? 'pointer' : 'not-allowed',
+                    transition: 'all 0.2s',
+                    height: '28px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    whiteSpace: 'nowrap'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (historyIndex > 0) {
+                      e.currentTarget.style.backgroundColor = '#e6d5f7'
+                      e.currentTarget.style.borderColor = '#5a2d7a'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (historyIndex > 0) {
+                      e.currentTarget.style.backgroundColor = '#fff'
+                      e.currentTarget.style.borderColor = '#ccc'
+                    }
+                  }}
+                  title="Undo"
+                >
+                  ↶ Undo
+                </button>
+                
+                {/* Redo Button */}
+                <button
+                  type="button"
+                  onClick={redo}
+                  disabled={historyIndex >= history.length - 1}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    backgroundColor: historyIndex < history.length - 1 ? '#fff' : '#f0f0f0',
+                    color: historyIndex < history.length - 1 ? '#5a2d7a' : '#999',
+                    border: '1px solid #ccc',
+                    borderRadius: '3px',
+                    cursor: historyIndex < history.length - 1 ? 'pointer' : 'not-allowed',
+                    transition: 'all 0.2s',
+                    height: '28px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    whiteSpace: 'nowrap'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (historyIndex < history.length - 1) {
+                      e.currentTarget.style.backgroundColor = '#e6d5f7'
+                      e.currentTarget.style.borderColor = '#5a2d7a'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (historyIndex < history.length - 1) {
+                      e.currentTarget.style.backgroundColor = '#fff'
+                      e.currentTarget.style.borderColor = '#ccc'
+                    }
+                  }}
+                  title="Redo"
+                >
+                  ↷ Redo
+                </button>
+                
+                {/* Symbols Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setShowSymbolToolbar(!showSymbolToolbar)}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    backgroundColor: showSymbolToolbar ? '#5a2d7a' : '#fff',
+                    color: showSymbolToolbar ? '#fff' : '#5a2d7a',
+                    border: '1px solid #5a2d7a',
+                    borderRadius: '3px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    height: '28px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    whiteSpace: 'nowrap'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!showSymbolToolbar) {
+                      e.currentTarget.style.backgroundColor = '#e6d5f7'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!showSymbolToolbar) {
+                      e.currentTarget.style.backgroundColor = '#fff'
+                    }
+                  }}
+                  title={showSymbolToolbar ? 'Hide symbols' : 'Show symbols'}
+                >
+                  {showSymbolToolbar ? '▼ Symbols' : '▶ Symbols'}
+                </button>
+              </div>
+              
+              {/* Mathematical Symbol Toolbar */}
+              {showSymbolToolbar && (
+                <div style={{ 
+                  display: 'flex', 
+                  flexWrap: 'wrap', 
+                  gap: '4px',
+                  alignItems: 'center'
+                }}>
+                  {mathSymbols.map((symbol, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => insertSymbol(symbol.value)}
+                      style={{
+                        padding: '4px 8px',
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        backgroundColor: '#fff',
+                        border: '1px solid #ccc',
+                        borderRadius: '3px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        minWidth: '28px',
+                        height: '28px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#e6d5f7'
+                        e.currentTarget.style.borderColor = '#5a2d7a'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#fff'
+                        e.currentTarget.style.borderColor = '#ccc'
+                      }}
+                      title={`Insert ${symbol.label}`}
+                    >
+                      {symbol.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <textarea
               id="baseQuestion"
               value={baseQuestion}
-              onChange={(e) => setBaseQuestion(e.target.value)}
+              onChange={(e) => handleBaseQuestionChange(e.target.value)}
               rows={4}
               required
-              placeholder="Enter your base question here..."
+              placeholder="Enter your base question here... Use the toolbar above to insert mathematical symbols."
             />
           </div>
           
@@ -365,7 +716,31 @@ function GeneratePageContent() {
                 type="number"
                 id="numCopyQuestions"
                 value={numCopyQuestions}
-                onChange={(e) => setNumCopyQuestions(parseInt(e.target.value, 10))}
+                onChange={(e) => {
+                  const value = e.target.value
+                  if (value === '') {
+                    setNumCopyQuestions(1)
+                    return
+                  }
+                  const numValue = parseInt(value, 10)
+                  if (!isNaN(numValue)) {
+                    if (numValue < 1) {
+                      setNumCopyQuestions(1)
+                    } else if (numValue > 20) {
+                      setNumCopyQuestions(20)
+                    } else {
+                      setNumCopyQuestions(numValue)
+                    }
+                  }
+                }}
+                onBlur={(e) => {
+                  const value = parseInt(e.target.value, 10)
+                  if (isNaN(value) || value < 1) {
+                    setNumCopyQuestions(1)
+                  } else if (value > 20) {
+                    setNumCopyQuestions(20)
+                  }
+                }}
                 min={1}
                 max={20}
                 required
@@ -445,6 +820,18 @@ function GeneratePageContent() {
                       <span className="question-number">Question {index + 1}</span>
                     </div>
                     <div className="button-group-inline">
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => verifyQuestion(index)}
+                        disabled={verifyingQuestions.has(index)}
+                        style={{
+                          backgroundColor: verifyingQuestions.has(index) ? '#ccc' : '#5a2d7a',
+                          color: '#fff',
+                          marginRight: '8px'
+                        }}
+                      >
+                        {verifyingQuestions.has(index) ? 'Verifying...' : '✓ Verify'}
+                      </button>
                       <button
                         className="btn btn-secondary"
                         onClick={() => copyQuestion(index)}
