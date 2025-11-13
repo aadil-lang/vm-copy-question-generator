@@ -32,6 +32,9 @@ function GeneratePageContent() {
   const [showSymbolToolbar, setShowSymbolToolbar] = useState(false)
   const [history, setHistory] = useState<string[]>([''])
   const [historyIndex, setHistoryIndex] = useState(0)
+  const [copiedQuestionIndex, setCopiedQuestionIndex] = useState<number | null>(null)
+  const [copiedSelected, setCopiedSelected] = useState(false)
+  const [copiedAll, setCopiedAll] = useState(false)
   
   const pageTitle = questionType === 'mathematical' 
     ? 'Mathematical Questions Generator'
@@ -41,6 +44,82 @@ function GeneratePageContent() {
     ? 'Image-based Questions Generator'
     : 'Copy Question Generator'
   
+  // Helper function to parse number of options from base question
+  const parseNumberOfOptions = (question: string): number => {
+    const foundOptions = new Set<string>()
+    
+    // Pattern 1: A), B), C), D) - letter followed by closing paren and space
+    const pattern1 = /\b([A-Z])\)\s/gi
+    const matches1 = Array.from(question.matchAll(pattern1))
+    for (const match of matches1) {
+      foundOptions.add(match[1].toUpperCase())
+    }
+    
+    // Pattern 2: A. B. C. D. - letter followed by period and space
+    const pattern2 = /\b([A-Z])\.\s/gi
+    const matches2 = Array.from(question.matchAll(pattern2))
+    for (const match of matches2) {
+      foundOptions.add(match[1].toUpperCase())
+    }
+    
+    // Pattern 3: (A), (B), (C), (D) - letter in parentheses
+    const pattern3 = /\(([A-Z])\)/gi
+    const matches3 = Array.from(question.matchAll(pattern3))
+    for (const match of matches3) {
+      foundOptions.add(match[1].toUpperCase())
+    }
+    
+    // Pattern 4: Option A, Option B, Option C, Option D
+    const pattern4 = /Option\s+([A-Z])[:\s]/gi
+    const matches4 = Array.from(question.matchAll(pattern4))
+    for (const match of matches4) {
+      foundOptions.add(match[1].toUpperCase())
+    }
+    
+    // Pattern 5: A) Text, B) Text (no space after paren)
+    const pattern5 = /\b([A-Z])\)[^\s]/gi
+    const matches5 = Array.from(question.matchAll(pattern5))
+    for (const match of matches5) {
+      foundOptions.add(match[1].toUpperCase())
+    }
+    
+    // If we found letter options, determine the count
+    if (foundOptions.size > 0) {
+      const maxLetter = Array.from(foundOptions).sort().pop() || 'A'
+      const numOptions = maxLetter.charCodeAt(0) - 'A'.charCodeAt(0) + 1
+      if (numOptions >= 2 && numOptions <= 10) {
+        return numOptions
+      }
+    }
+    
+    // Check for numbered options as fallback
+    const numberedPatterns = [
+      /\b(\d+)\)\s/g,  // 1), 2), 3), 4)
+      /\b(\d+)\.\s/g,  // 1. 2. 3. 4.
+    ]
+    
+    const numbers: number[] = []
+    for (const pattern of numberedPatterns) {
+      const matches = Array.from(question.matchAll(pattern))
+      for (const match of matches) {
+        const num = parseInt(match[1], 10)
+        if (!isNaN(num)) {
+          numbers.push(num)
+        }
+      }
+    }
+    
+    if (numbers.length > 0) {
+      const maxNum = Math.max(...numbers)
+      if (maxNum >= 2 && maxNum <= 10) {
+        return maxNum
+      }
+    }
+    
+    // Default to 4 if no options detected
+    return 4
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -61,6 +140,9 @@ function GeneratePageContent() {
     }, 2000)
     
     try {
+      // Extract number of options from base question
+      const numOptions = parseNumberOfOptions(baseQuestion)
+      
       // Convert uploaded images to base64
       const imageBase64Array = uploadedImages.length > 0 
         ? await convertImagesToBase64(uploadedImages)
@@ -74,6 +156,7 @@ function GeneratePageContent() {
         body: JSON.stringify({
           baseQuestion,
           numCopyQuestions,
+          numOptions, // Explicitly send the number of options
           notes: notes.trim(), // Trim whitespace to ensure empty string if only whitespace
           solution,
           images,
@@ -108,31 +191,57 @@ function GeneratePageContent() {
     const question = questions[index]
     const text = formatQuestionForCopy(question)
     navigator.clipboard.writeText(text)
+    // Show green feedback
+    setCopiedQuestionIndex(index)
+    setTimeout(() => setCopiedQuestionIndex(null), 2000) // Reset after 2 seconds
   }
   
   const copySelected = () => {
     const selected = Array.from(selectedQuestions)
       .map(idx => formatQuestionForCopy(questions[idx]))
-      .join('\n\n')
+      .join('\n') // Single newline separates questions (each goes to one cell per row)
     navigator.clipboard.writeText(selected)
+    // Show green feedback
+    setCopiedSelected(true)
+    setTimeout(() => setCopiedSelected(false), 2000) // Reset after 2 seconds
   }
   
   const copyAll = () => {
-    const all = questions.map(q => formatQuestionForCopy(q)).join('\n\n')
+    // Join questions with newline so each question goes to a separate cell/row when pasted
+    // Each question will be in its own cell with options wrapped to new lines within that cell
+    const all = questions.map(q => formatQuestionForCopy(q)).join('\n')
     navigator.clipboard.writeText(all)
+    // Show green feedback
+    setCopiedAll(true)
+    setTimeout(() => setCopiedAll(false), 2000) // Reset after 2 seconds
   }
   
   const formatQuestionForCopy = (question: Question): string => {
-    let text = question.question + '\n\n'
+    // Format: Question text with spacing, then each option on its own line (all in one cell)
+    // Format: Question text followed by spaces so options wrap to next line
+    // Each option also has spacing after it so the next option wraps to a new line
+    // This ensures each option appears on its own line when pasted into spreadsheets with word wrap
+    let text = question.question
+    
+    // Add multiple spaces to ensure first option wraps to next line
+    text += ' '.repeat(100) // Add 100 spaces to push first option to next line
+    
+    // Add options with logic, each with spacing after to push next option to new line
     question.options.forEach((opt, idx) => {
-      text += `${String.fromCharCode(65 + idx)}. ${opt.text}`
+      let optionText = `${String.fromCharCode(65 + idx)}) ${opt.text}`
       if (opt.logic === 'CA') {
-        text += ' (Correct Answer)'
+        optionText += ' (Correct Answer)'
       } else if (opt.logic) {
-        text += ` (Logic: ${opt.logic})`
+        optionText += ` (Logic: ${opt.logic})`
       }
-      text += '\n'
+      text += optionText
+      
+      // Add spacing after each option (except the last one) to push next option to new line
+      if (idx < question.options.length - 1) {
+        text += ' '.repeat(100) // Add 100 spaces after each option
+      }
     })
+    
     return text
   }
 
@@ -772,7 +881,13 @@ function GeneratePageContent() {
                 className="btn btn-secondary"
                 onClick={copySelected}
                 disabled={selectedQuestions.size === 0 || loading}
-                style={{ flex: '1' }}
+                style={{ 
+                  flex: '1',
+                  backgroundColor: copiedSelected ? '#28a745' : undefined,
+                  color: copiedSelected ? '#fff' : undefined,
+                  borderColor: copiedSelected ? '#28a745' : undefined,
+                  transition: 'all 0.3s ease'
+                }}
               >
                 Copy Selected ({selectedQuestions.size})
               </button>
@@ -781,7 +896,13 @@ function GeneratePageContent() {
                 className="btn btn-secondary"
                 onClick={copyAll}
                 disabled={questions.length === 0 || loading}
-                style={{ flex: '1' }}
+                style={{ 
+                  flex: '1',
+                  backgroundColor: copiedAll ? '#28a745' : undefined,
+                  color: copiedAll ? '#fff' : undefined,
+                  borderColor: copiedAll ? '#28a745' : undefined,
+                  transition: 'all 0.3s ease'
+                }}
               >
                 Copy All Questions
               </button>
@@ -832,6 +953,12 @@ function GeneratePageContent() {
                       <button
                         className="btn btn-secondary"
                         onClick={() => copyQuestion(index)}
+                        style={{
+                          backgroundColor: copiedQuestionIndex === index ? '#28a745' : undefined,
+                          color: copiedQuestionIndex === index ? '#fff' : undefined,
+                          borderColor: copiedQuestionIndex === index ? '#28a745' : undefined,
+                          transition: 'all 0.3s ease'
+                        }}
                       >
                         Copy
                       </button>
@@ -857,7 +984,7 @@ function GeneratePageContent() {
                           return (
                             <li key={optIndex} className={isCorrect ? 'correct' : 'incorrect'}>
                               <span className="option-label">
-                                {String.fromCharCode(65 + optIndex)}.
+                                {String.fromCharCode(65 + optIndex)})
                               </span>
                               <div>
                                 <div>{option.text}</div>

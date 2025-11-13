@@ -127,11 +127,14 @@ These rules apply to ALL questions regardless of type.
 - If you are unsure, solve the problem completely first, then mark the verified correct answer
 - Incorrect answers marked as CA will cause significant errors
 
-1.4 Number of Options
-- Match the exact number of options from the base question
-- If base has 4 options, generate 4 options
-- If base has 3 options, generate 3 options
-- If base has 2 options, generate 3 options
+1.4 Number of Options (CRITICAL - EXACT MATCH REQUIRED)
+- CRITICAL: You MUST match the EXACT number of options from the base question
+- If base has 4 options, you MUST generate EXACTLY 4 options - NO MORE, NO LESS
+- If base has 3 options, you MUST generate EXACTLY 3 options - NO MORE, NO LESS
+- If base has 2 options, you MUST generate EXACTLY 2 options - NO MORE, NO LESS
+- Count the options in the base question carefully before generating
+- The number of options is specified as ${numOptions} - you MUST generate EXACTLY ${numOptions} options per question
+- DO NOT add extra options or remove options - the count must match exactly
 
 1.5 Distractor Generation Strategy
 You must create distractors (incorrect options) using a varied mix of the following approaches:
@@ -146,7 +149,36 @@ Before providing your final answer, you must:
 - Solve each question completely
 - Verify the correct answer
 - Check that distractors are plausible but incorrect
-- Confirm all formatting matches the base question`
+- Confirm all formatting matches the base question
+- CRITICAL: Verify that you have generated EXACTLY ${numOptions} options (count them!)
+- CRITICAL: Verify that all SME notes (if provided) have been followed precisely
+
+1.7 SME Notes Compliance (CRITICAL - HIGHEST PRIORITY)
+- SME notes are provided by Subject Matter Experts and contain specific requirements
+- CRITICAL: SME notes have HIGHEST PRIORITY - they override and supplement all other instructions
+- CRITICAL: You MUST follow ALL instructions in SME notes precisely and completely
+- If SME notes specify certain constraints, formats, or requirements, you MUST adhere to them
+- If SME notes specify certain answer types, number ranges, or formats, you MUST use them
+- If SME notes specify certain scenarios or contexts, you MUST incorporate them
+- DO NOT ignore or skip any part of the SME notes
+- SME notes are MANDATORY - treat them as non-negotiable requirements
+
+1.8 Anti-Hallucination Requirements (CRITICAL - NO FABRICATION)
+- CRITICAL: You MUST base ALL content ONLY on the provided base question, SME notes, and explicit instructions
+- DO NOT invent, fabricate, or add information that is NOT present in the base question or SME notes
+- DO NOT add extra details, facts, or context that were not in the original base question
+- DO NOT create scenarios, characters, or situations that deviate from what's provided
+- DO NOT invent mathematical concepts, formulas, or methods not present in the base question
+- DO NOT add unnecessary complexity or additional constraints not in the original
+- DO NOT make up numbers, values, or quantities that aren't derived from the base question
+- DO NOT add cultural references, names, or details not present in the base question
+- DO NOT create solutions or methods that weren't implied by the base question structure
+- CRITICAL: If information is not explicitly provided, DO NOT assume or invent it
+- CRITICAL: Every element in your generated question must trace back to the base question or SME notes
+- When varying content, ONLY change what is explicitly allowed (numbers, names, contexts) while maintaining structure
+- If unsure whether to include something, ask: "Was this in the base question or SME notes?" If NO, exclude it
+- Verify: Every sentence, number, and concept in your generated question has a clear source in the provided materials
+- DO NOT hallucinate: If you don't see it in the base question or SME notes, it doesn't exist - don't create it`
   
   // Build user prompt
   const solutionText = solution ? `\nBase Solution: ${solution}` : ''
@@ -170,7 +202,46 @@ ${'='.repeat(80)}
 BASE QUESTION (STUDY THIS CAREFULLY):
 ${baseQuestion}
 
-${notes && notes.length > 0 ? `\nTIER 3: SME NOTES (HIGHEST PRIORITY - MUST FOLLOW PRECISELY)\n${notes}\nCRITICAL: SME notes supplement Tiers 1 and 2, but do not override them. Follow them precisely.\nCRITICAL: These are the ONLY SME notes for this request. Do NOT use any notes from previous requests or conversations.\n` : '\nTIER 3: SME NOTES - None provided.\nCRITICAL: There are NO SME notes for this request. Do NOT use any notes from previous requests or conversations.\nProceed with Tiers 1 and 2 only. Ignore any notes that may have been mentioned in previous interactions.\n'}
+${'='.repeat(80)}
+⚠️⚠️⚠️ ANTI-HALLUCINATION CHECKLIST ⚠️⚠️⚠️
+${'='.repeat(80)}
+Before generating each question, verify:
+- Am I only using information from the BASE QUESTION provided above?
+- Am I only using requirements from SME NOTES (if provided)?
+- Have I avoided adding any details NOT present in the base question?
+- Have I avoided inventing scenarios, characters, or contexts not in the base?
+- Are all numbers and values derived from or variations of the base question?
+- Have I avoided adding mathematical concepts not present in the base question?
+- Have I avoided adding unnecessary complexity or constraints?
+- Can I trace every element of my generated question back to the base question or SME notes?
+
+CRITICAL RULE: If you cannot identify the source of an element in the base question or SME notes, DO NOT include it.
+${'='.repeat(80)}
+
+${notes && notes.length > 0 ? `\n${'='.repeat(80)}
+⚠️⚠️⚠️ TIER 3: SME NOTES (HIGHEST PRIORITY - ABSOLUTE MANDATORY REQUIREMENTS) ⚠️⚠️⚠️
+${'='.repeat(80)}
+CRITICAL: The following SME notes are MANDATORY and have HIGHEST PRIORITY over all other instructions.
+CRITICAL: You MUST follow EVERY requirement in these SME notes precisely and completely.
+CRITICAL: SME notes override and supplement Tiers 1 and 2 - they are non-negotiable.
+CRITICAL: If SME notes conflict with other instructions, SME notes take precedence.
+CRITICAL: Read these notes carefully and ensure ALL requirements are met in EVERY generated question.
+
+SME NOTES CONTENT:
+${notes}
+
+⚠️⚠️⚠️ VERIFICATION CHECKLIST FOR SME NOTES ⚠️⚠️⚠️
+Before finalizing each question, verify:
+- Have I read and understood ALL SME notes requirements?
+- Have I incorporated ALL requirements from SME notes into this question?
+- Does this question follow ALL constraints specified in SME notes?
+- Does this question use ALL formats/types specified in SME notes?
+- If SME notes specify answer types/ranges/formats, does this question use them?
+- If SME notes specify scenarios/contexts, does this question incorporate them?
+- Have I followed EVERY instruction in the SME notes, not just some of them?
+
+CRITICAL: These are the ONLY SME notes for this request. Do NOT use any notes from previous requests or conversations.
+${'='.repeat(80)}\n` : '\nTIER 3: SME NOTES - None provided.\nCRITICAL: There are NO SME notes for this request. Do NOT use any notes from previous requests or conversations.\nProceed with Tiers 1 and 2 only. Ignore any notes that may have been mentioned in previous interactions.\n'}
 
 ${solution ? `Base Solution: ${solution}\n` : ''}${imageInfo ? `${imageInfo}\n` : ''}
 
@@ -251,11 +322,11 @@ CRITICAL REQUIREMENTS FOR OPTIONS AND CORRECT ANSWERS:
    - All ${numOptions} options must be complete and valid answers
 
 QUALITY CHECKLIST (Self-Verify Before Finalizing):
- Format matches base question exactly
+✅ Format matches base question exactly
 ✅ Correct answer is mathematically verified
 ✅ Options don't follow a predictable pattern
-✅ Number of options matches base question
-✅ SME notes (if provided) have been followed
+✅ CRITICAL: Number of options is EXACTLY ${numOptions} - count them to verify!
+✅ CRITICAL: ALL SME notes (if provided) have been followed PRECISELY - verify each requirement
 ✅ No mathematical errors or logical contradictions
 
 JSON FORMAT REQUIREMENTS:
@@ -272,9 +343,12 @@ EXAMPLE FORMAT:
 
 CRITICAL FINAL REMINDER:
 - You MUST return EXACTLY ${numQuestions} questions in the JSON array
-- Each question MUST have EXACTLY ${numOptions} options
+- CRITICAL: Each question MUST have EXACTLY ${numOptions} options - NO MORE, NO LESS
 - Count your questions: The array must have exactly ${numQuestions} elements, no more, no less
-- Verify before submitting: Check that your JSON array contains exactly ${numQuestions} question objects`
+- Count options in EACH question: Every question must have exactly ${numOptions} options
+- Verify before submitting: Check that your JSON array contains exactly ${numQuestions} question objects
+- Verify before submitting: Check that EACH question object has exactly ${numOptions} options in its options array
+- ${notes && notes.length > 0 ? 'CRITICAL: Verify that ALL SME notes requirements have been followed in EVERY question' : ''}`
   } else {
     // Word Problems or Image-Based Questions
     const isImageBased = questionType === 'image_based'
@@ -292,7 +366,46 @@ ${'='.repeat(80)}
 BASE QUESTION (STUDY THIS CAREFULLY):
 ${baseQuestion}
 
-${notes && notes.length > 0 ? `\nTIER 3: SME NOTES (HIGHEST PRIORITY - MUST FOLLOW PRECISELY)\n${notes}\nCRITICAL: SME notes supplement and may modify Tiers 1 and 2. Follow them precisely.\nCRITICAL: These are the ONLY SME notes for this request. Do NOT use any notes from previous requests or conversations.\n` : '\nTIER 3: SME NOTES - None provided.\nCRITICAL: There are NO SME notes for this request. Do NOT use any notes from previous requests or conversations.\nProceed with Tiers 1 and 2 only. Ignore any notes that may have been mentioned in previous interactions.\n'}
+${'='.repeat(80)}
+⚠️⚠️⚠️ ANTI-HALLUCINATION CHECKLIST ⚠️⚠️⚠️
+${'='.repeat(80)}
+Before generating each question, verify:
+- Am I only using information from the BASE QUESTION provided above?
+- Am I only using requirements from SME NOTES (if provided)?
+- Have I avoided adding any details NOT present in the base question?
+- Have I avoided inventing scenarios, characters, or contexts not in the base?
+- Are all numbers and values derived from or variations of the base question?
+- Have I avoided adding mathematical concepts not present in the base question?
+- Have I avoided adding unnecessary complexity or constraints?
+- Can I trace every element of my generated question back to the base question or SME notes?
+
+CRITICAL RULE: If you cannot identify the source of an element in the base question or SME notes, DO NOT include it.
+${'='.repeat(80)}
+
+${notes && notes.length > 0 ? `\n${'='.repeat(80)}
+⚠️⚠️⚠️ TIER 3: SME NOTES (HIGHEST PRIORITY - ABSOLUTE MANDATORY REQUIREMENTS) ⚠️⚠️⚠️
+${'='.repeat(80)}
+CRITICAL: The following SME notes are MANDATORY and have HIGHEST PRIORITY over all other instructions.
+CRITICAL: You MUST follow EVERY requirement in these SME notes precisely and completely.
+CRITICAL: SME notes override and supplement Tiers 1 and 2 - they are non-negotiable.
+CRITICAL: If SME notes conflict with other instructions, SME notes take precedence.
+CRITICAL: Read these notes carefully and ensure ALL requirements are met in EVERY generated question.
+
+SME NOTES CONTENT:
+${notes}
+
+⚠️⚠️⚠️ VERIFICATION CHECKLIST FOR SME NOTES ⚠️⚠️⚠️
+Before finalizing each question, verify:
+- Have I read and understood ALL SME notes requirements?
+- Have I incorporated ALL requirements from SME notes into this question?
+- Does this question follow ALL constraints specified in SME notes?
+- Does this question use ALL formats/types specified in SME notes?
+- If SME notes specify answer types/ranges/formats, does this question use them?
+- If SME notes specify scenarios/contexts, does this question incorporate them?
+- Have I followed EVERY instruction in the SME notes, not just some of them?
+
+CRITICAL: These are the ONLY SME notes for this request. Do NOT use any notes from previous requests or conversations.
+${'='.repeat(80)}\n` : '\nTIER 3: SME NOTES - None provided.\nCRITICAL: There are NO SME notes for this request. Do NOT use any notes from previous requests or conversations.\nProceed with Tiers 1 and 2 only. Ignore any notes that may have been mentioned in previous interactions.\n'}
 
 ${solution ? `Base Solution: ${solution}\n` : ''}${imageInfo ? `${imageInfo}\n` : ''}${imageFiles.length > 0 ? `\nUPLOADED IMAGES: ${imageFiles.length} image(s) have been uploaded. Use these images as reference for the visual elements, dimensions, angles, and other details needed to generate similar questions.\n` : ''}
 ${curriculum && grade ? `Curriculum: ${curriculum} | Grade: ${grade} | Difficulty: ${difficulty}` : difficulty ? `Difficulty: ${difficulty}` : ''}
@@ -484,11 +597,11 @@ QUALITY CHECKLIST (Self-Verify Before Finalizing):
 ✅ Format matches base question exactly
 ✅ Correct answer is mathematically verified
 ✅ Options don't follow a predictable pattern
-✅ Number of options matches base question
+✅ CRITICAL: Number of options is EXACTLY ${numOptions} - count them to verify!
 ✅ ${isImageBased ? 'Complete visual description provided for each question' : 'Scenario is different from base and realistic'}
 ✅ ${isImageBased ? 'Description allows problem to be solved' : 'Phrasing style matches base question'}
 ✅ ${isImageBased ? '' : 'CRITICAL: Each copy question has a DIFFERENT correct answer value than the base question - verify this!'}
-✅ SME notes (if provided) have been followed
+✅ CRITICAL: ALL SME notes (if provided) have been followed PRECISELY - verify each requirement individually
 ✅ No mathematical errors or logical contradictions
 
 ⚠️⚠️⚠️ FINAL REMINDER - ANSWER VERIFICATION:
@@ -583,12 +696,16 @@ Your response should look like this (example for ${numQuestions} questions):
 
 CRITICAL FINAL REMINDER:
 - You MUST return EXACTLY ${numQuestions} questions in the JSON array
-- Each question MUST have EXACTLY ${numOptions} options
+- CRITICAL: Each question MUST have EXACTLY ${numOptions} options - NO MORE, NO LESS
 - Count your questions: The array must have exactly ${numQuestions} elements, no more, no less
+- Count options in EACH question: Every question must have exactly ${numOptions} options
 - Verify before submitting: Check that your JSON array contains exactly ${numQuestions} question objects
+- Verify before submitting: Check that EACH question object has exactly ${numOptions} options in its options array
 - The array must start with [ and end with ]
 - DO NOT return fewer than ${numQuestions} questions
-- DO NOT return more than ${numQuestions} questions`
+- DO NOT return more than ${numQuestions} questions
+- DO NOT add extra options or remove options - the count must match exactly
+- ${notes && notes.length > 0 ? 'CRITICAL: Verify that ALL SME notes requirements have been followed in EVERY question' : ''}`
   }
   
   try {
