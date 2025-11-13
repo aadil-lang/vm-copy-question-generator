@@ -193,7 +193,7 @@ function GeneratePageContent() {
     navigator.clipboard.writeText(text)
     // Show green feedback
     setCopiedQuestionIndex(index)
-    setTimeout(() => setCopiedQuestionIndex(null), 2000) // Reset after 2 seconds
+    setTimeout(() => setCopiedQuestionIndex(null), 20000) // Reset after 20 seconds
   }
   
   const copySelected = () => {
@@ -203,7 +203,7 @@ function GeneratePageContent() {
     navigator.clipboard.writeText(selected)
     // Show green feedback
     setCopiedSelected(true)
-    setTimeout(() => setCopiedSelected(false), 2000) // Reset after 2 seconds
+    setTimeout(() => setCopiedSelected(false), 20000) // Reset after 20 seconds
   }
   
   const copyAll = () => {
@@ -213,7 +213,7 @@ function GeneratePageContent() {
     navigator.clipboard.writeText(all)
     // Show green feedback
     setCopiedAll(true)
-    setTimeout(() => setCopiedAll(false), 2000) // Reset after 2 seconds
+    setTimeout(() => setCopiedAll(false), 20000) // Reset after 20 seconds
   }
   
   const formatQuestionForCopy = (question: Question): string => {
@@ -1001,7 +1001,40 @@ function GeneratePageContent() {
                   {question.solution && (
                     <div className="solution-container">
                       <h3 className="solution-title">Solution:</h3>
-                      <div className="solution-text">{question.solution}</div>
+                      <div 
+                        className="solution-text" 
+                        style={{
+                          whiteSpace: 'pre-line',
+                          lineHeight: '1.8',
+                          padding: '12px',
+                          backgroundColor: '#f8f9fa',
+                          borderRadius: '4px',
+                          border: '1px solid #e0e0e0'
+                        }}
+                      >
+                        {question.solution.split(/\n+/).map((line, idx) => {
+                          // Format steps to appear on new lines
+                          // If line starts with "Step" or number, ensure it's on its own line
+                          const trimmedLine = line.trim()
+                          if (!trimmedLine) return <br key={idx} />
+                          
+                          // Check if it's a step (Step 1:, Step 2:, 1., 2., etc.)
+                          const isStep = /^(Step\s*\d+|^\d+\.|^[A-Z]\.)/i.test(trimmedLine)
+                          
+                          return (
+                            <div 
+                              key={idx} 
+                              style={{
+                                marginBottom: isStep ? '8px' : '4px',
+                                fontWeight: isStep ? '600' : '400',
+                                color: isStep ? '#5a2d7a' : '#333'
+                              }}
+                            >
+                              {trimmedLine}
+                            </div>
+                          )
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>

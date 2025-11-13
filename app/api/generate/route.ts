@@ -321,12 +321,29 @@ CRITICAL REQUIREMENTS FOR OPTIONS AND CORRECT ANSWERS:
    - Each question MUST have EXACTLY ${numOptions} options
    - All ${numOptions} options must be complete and valid answers
 
+5. STEP-BY-STEP SOLUTIONS (CRITICAL - MUST BE COMPLETE AND DETAILED):
+   - Each question MUST include a COMPLETE, DETAILED step-by-step solution in the "solution" field
+   - CRITICAL: The solution MUST be complete in all sense - show ALL steps, calculations, and reasoning
+   - CRITICAL: Format each step on a NEW LINE using "Step 1:", "Step 2:", "Step 3:", etc. or numbered format
+   - Each step MUST be clearly separated and on its own line for readability
+   - Include ALL intermediate calculations and explanations
+   - Show the complete work from start to finish - do NOT skip steps
+   - Verify the final answer matches the correct option
+   - Show the logical progression from the problem statement to the final answer with ALL steps
+   - Make it educational and easy to follow - a student should be able to understand each step
+   - Format: Use line breaks between steps (each step on a new line)
+   ${solution ? '- Base the solution on the provided base solution, adapting steps to match each question\'s numbers/context' : ''}
+   - Example format:
+     "Step 1: [First step explanation and calculation]\nStep 2: [Second step explanation and calculation]\nStep 3: [Final step and answer]"
+
 QUALITY CHECKLIST (Self-Verify Before Finalizing):
 ✅ Format matches base question exactly
 ✅ Correct answer is mathematically verified
 ✅ Options don't follow a predictable pattern
 ✅ CRITICAL: Number of options is EXACTLY ${numOptions} - count them to verify!
 ✅ CRITICAL: ALL SME notes (if provided) have been followed PRECISELY - verify each requirement
+✅ CRITICAL: Solution is COMPLETE with ALL steps shown - verify no steps are skipped
+✅ CRITICAL: Solution is formatted with each step on a new line for readability
 ✅ No mathematical errors or logical contradictions
 
 JSON FORMAT REQUIREMENTS:
@@ -587,11 +604,20 @@ CRITICAL REQUIREMENTS FOR OPTIONS AND CORRECT ANSWERS:
    - Each question MUST have EXACTLY ${numOptions} options
    - All ${numOptions} options must be complete and valid answers
 
-5. STEP-BY-STEP SOLUTIONS:
-   - Each question MUST include a brief, clear step-by-step solution in the "solution" field
-   ${isImageBased ? '- Reference specific parts of the image description (e.g., "Using the angle shown in the triangle...", "From the graph, we can see...")' : '- Show the logical progression from the problem statement to the final answer'}
-   - Make it educational and easy to follow
+5. STEP-BY-STEP SOLUTIONS (CRITICAL - MUST BE COMPLETE AND DETAILED):
+   - Each question MUST include a COMPLETE, DETAILED step-by-step solution in the "solution" field
+   - CRITICAL: The solution MUST be complete in all sense - show ALL steps, calculations, and reasoning
+   - CRITICAL: Format each step on a NEW LINE using "Step 1:", "Step 2:", "Step 3:", etc. or numbered format
+   - Each step MUST be clearly separated and on its own line for readability
+   - Include ALL intermediate calculations and explanations
+   - Show the complete work from start to finish - do NOT skip steps
+   - Verify the final answer matches the correct option
+   ${isImageBased ? '- Reference specific parts of the image description (e.g., "Step 1: Using the angle shown in the triangle...", "Step 2: From the graph, we can see...")' : '- Show the logical progression from the problem statement to the final answer with ALL steps'}
+   - Make it educational and easy to follow - a student should be able to understand each step
+   - Format: Use line breaks between steps (each step on a new line)
    ${solution ? '- Base the solution on the provided base solution, adapting steps to match each question\'s numbers/context' : ''}
+   - Example format:
+     "Step 1: [First step explanation and calculation]\nStep 2: [Second step explanation and calculation]\nStep 3: [Final step and answer]"
 
 QUALITY CHECKLIST (Self-Verify Before Finalizing):
 ✅ Format matches base question exactly
@@ -602,6 +628,8 @@ QUALITY CHECKLIST (Self-Verify Before Finalizing):
 ✅ ${isImageBased ? 'Description allows problem to be solved' : 'Phrasing style matches base question'}
 ✅ ${isImageBased ? '' : 'CRITICAL: Each copy question has a DIFFERENT correct answer value than the base question - verify this!'}
 ✅ CRITICAL: ALL SME notes (if provided) have been followed PRECISELY - verify each requirement individually
+✅ CRITICAL: Solution is COMPLETE with ALL steps shown - verify no steps are skipped
+✅ CRITICAL: Solution is formatted with each step on a new line for readability
 ✅ No mathematical errors or logical contradictions
 
 ⚠️⚠️⚠️ FINAL REMINDER - ANSWER VERIFICATION:
@@ -978,7 +1006,7 @@ CRITICAL FINAL REMINDER:
     // If we have more than requested, trim to exact number
     if (validatedQuestions.length > numQuestions) {
       console.warn(`Generated ${validatedQuestions.length} questions, but only ${numQuestions} requested. Trimming to requested number.`)
-      return validatedQuestions.slice(0, numQuestions)
+    return validatedQuestions.slice(0, numQuestions)
     }
     
     // Return exactly the requested number
