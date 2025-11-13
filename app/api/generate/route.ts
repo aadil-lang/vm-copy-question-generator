@@ -370,6 +370,17 @@ Apply These Additional Requirements:
 - Different characters: Use diverse names, professions, ages, and settings
 - Rotate problem types: Mix distance-time, work-rate, mixture, age, money, and measurement problems
 
+1.1 Answer Value Diversity (CRITICAL - MUST BE DIFFERENT)
+- CRITICAL: Each generated copy question MUST have a DIFFERENT correct answer value than the base question
+- If the base question's correct answer is 25%, NONE of the copy questions should have 25% as the correct answer
+- If the base question's correct answer is $50, NONE of the copy questions should have $50 as the correct answer
+- If the base question's correct answer is 12 apples, NONE of the copy questions should have 12 apples as the correct answer
+- Each copy question must have a UNIQUE correct answer value that is different from the base question and different from other copy questions
+- Change the numbers, quantities, percentages, amounts, etc. in each question to ensure different answer values
+- Example: Base question answer = 25% → Copy questions should have answers like 30%, 20%, 35%, 15%, etc. (NOT 25%)
+- Example: Base question answer = $50 → Copy questions should have answers like $60, $45, $75, $40, etc. (NOT $50)
+- CRITICAL: Verify that each generated question's correct answer is different from the base question's answer
+
 2. Logical and Realistic Feasibility
 - Real-world plausibility: Scenarios must be believable and possible
 - Reasonable speeds, prices, timeframes
@@ -476,6 +487,7 @@ QUALITY CHECKLIST (Self-Verify Before Finalizing):
 ✅ Number of options matches base question
 ✅ ${isImageBased ? 'Complete visual description provided for each question' : 'Scenario is different from base and realistic'}
 ✅ ${isImageBased ? 'Description allows problem to be solved' : 'Phrasing style matches base question'}
+✅ ${isImageBased ? '' : 'CRITICAL: Each copy question has a DIFFERENT correct answer value than the base question - verify this!'}
 ✅ SME notes (if provided) have been followed
 ✅ No mathematical errors or logical contradictions
 
@@ -486,12 +498,14 @@ Before generating your response, ensure you have:
 3. Checked that your answer satisfies all conditions
 4. Marked ONLY the verified correct answer as "logic": "CA"
 5. Generated appropriate distractors with error logic
+${isImageBased ? '' : '6. CRITICAL: Verified that each copy question has a DIFFERENT correct answer value than the base question (e.g., if base answer is 25%, copy questions should have 30%, 20%, 35%, etc., NOT 25%)'}
 
 DO NOT:
 - Mark an answer as CA without solving the problem
 - Mark multiple options as CA
 - Guess which answer is correct
 - Mark the first option as CA just because it's first
+${isImageBased ? '' : '- Use the same answer value as the base question for any copy question'}
 
 CRITICAL JSON FORMAT REQUIREMENTS:
 - Your FIRST character MUST be [ (opening square bracket)
@@ -600,7 +614,7 @@ CRITICAL FINAL REMINDER:
     }
     
     const apiParams: any = {
-      model: model, // Supports gpt-5, gpt-4o, gpt-4-turbo, gpt-4
+      model: model, // Supports o3, o4-mini, gpt-5, gpt-4o
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -613,9 +627,10 @@ CRITICAL FINAL REMINDER:
     try {
       response = await client.chat.completions.create(apiParams)
     } catch (error: any) {
-      // If gpt-5 is not available, fallback to gpt-4o
-      if (model === 'gpt-5' && (error?.message?.includes('model') || error?.code === 'model_not_found')) {
-        console.warn('GPT-5 not available, falling back to GPT-4o')
+      // If model is not available, fallback to gpt-4o
+      if ((model === 'gpt-5' || model === 'o3' || model === 'o4-mini') && 
+          (error?.message?.includes('model') || error?.code === 'model_not_found')) {
+        console.warn(`${model} not available, falling back to GPT-4o`)
         apiParams.model = 'gpt-4o'
         response = await client.chat.completions.create(apiParams)
       } else {

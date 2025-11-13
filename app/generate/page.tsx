@@ -133,9 +133,6 @@ function GeneratePageContent() {
       }
       text += '\n'
     })
-    if (question.solution) {
-      text += `\nSolution: ${question.solution}`
-    }
     return text
   }
 
@@ -757,10 +754,10 @@ function GeneratePageContent() {
                 required
                 style={{ width: '100%' }}
               >
+                <option value="o3">O3</option>
+                <option value="o4-mini">O4 Mini</option>
                 <option value="gpt-5">GPT-5</option>
                 <option value="gpt-4o">GPT-4o</option>
-                <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                <option value="gpt-4">GPT-4</option>
               </select>
             </div>
           </div>

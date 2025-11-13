@@ -72,8 +72,13 @@ STEP 4: VERIFY ALL OPTIONS INDIVIDUALLY
 - Exactly ONE option should be correct
 - ALL other options should be incorrect
 
-STEP 5: VERIFY DISTRACTOR LOGIC
+STEP 5: VERIFY DISTRACTOR LOGIC AND OPTION VALUES
 - For each incorrect option, check if the provided logic accurately describes why it's wrong
+- CRITICAL: Verify that each option's VALUE actually matches its described logic
+- For example, if logic says "Used subtraction instead", the option value should be the result of using subtraction
+- If logic says "Forgot to carry over", the option value should reflect that specific error
+- If logic says "Wrong denominator", the option value should have the wrong denominator
+- If an option's value does NOT match its logic, you MUST correct the option value to match the logic
 - If the logic is inaccurate or missing, provide a better description
 
 STEP 6: VERIFY THE QUESTION ITSELF
@@ -114,6 +119,19 @@ CRITICAL ERROR DETECTION RULES:
    - Set hasErrors: true
    - Add error: "Distractor logic for option [letter] is inaccurate."
    - Provide corrected logic
+   - Ensure the option value matches the corrected logic
+
+6. If an option value does not match its logic (CRITICAL - MUST CHECK):
+   - Set hasErrors: true
+   - Add error: "Option [letter] value does not match its logic. Logic says '[logic]', but value is '[current value]'."
+   - Calculate what the option value SHOULD be based on the logic
+   - Update the option value to match the logic
+   - Examples:
+     * Logic: "Used subtraction instead" for "5 + 7" → Option should be "-2" or "5 - 7" (result of subtraction), NOT "12" or "13"
+     * Logic: "Forgot to carry over" for "15 + 27" → Option should be "32" (15+27 without carrying), NOT "42" or "40"
+     * Logic: "Wrong denominator" for fraction addition → Option should have the wrong denominator applied
+     * Logic: "Calculation error" → Option should reflect a specific calculation mistake
+   - CRITICAL: The option value MUST be the result of applying the error described in the logic
 
 OUTPUT FORMAT (JSON only, no markdown):
 {
@@ -226,9 +244,10 @@ CRITICAL INSTRUCTIONS:
         result: parsed
       })
     } catch (error: any) {
-      // If gpt-5 is not available, fallback to gpt-4o
-      if (model === 'gpt-5' && (error?.message?.includes('model') || error?.code === 'model_not_found')) {
-        console.warn('GPT-5 not available for verification, falling back to GPT-4o')
+      // If model is not available, fallback to gpt-4o
+      if ((model === 'gpt-5' || model === 'o3' || model === 'o4-mini') && 
+          (error?.message?.includes('model') || error?.code === 'model_not_found')) {
+        console.warn(`${model} not available for verification, falling back to GPT-4o`)
         const client = getOpenAIClient()
         const response = await client.chat.completions.create({
           model: 'gpt-4o',
