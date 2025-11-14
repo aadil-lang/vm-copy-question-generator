@@ -72,14 +72,32 @@ STEP 4: VERIFY ALL OPTIONS INDIVIDUALLY
 - Exactly ONE option should be correct
 - ALL other options should be incorrect
 
-STEP 5: VERIFY DISTRACTOR LOGIC AND OPTION VALUES
-- For each incorrect option, check if the provided logic accurately describes why it's wrong
-- CRITICAL: Verify that each option's VALUE actually matches its described logic
-- For example, if logic says "Used subtraction instead", the option value should be the result of using subtraction
-- If logic says "Forgot to carry over", the option value should reflect that specific error
-- If logic says "Wrong denominator", the option value should have the wrong denominator
-- If an option's value does NOT match its logic, you MUST correct the option value to match the logic
-- If the logic is inaccurate or missing, provide a better description
+STEP 5: VERIFY DISTRACTOR LOGIC AND OPTION VALUES (CRITICAL - MUST VERIFY BOTH)
+- CRITICAL: You MUST verify BOTH the option value AND its corresponding logic for EVERY option
+- For EACH option (correct and incorrect), perform these checks:
+  
+  A. VERIFY OPTION VALUE:
+     - Is the option value mathematically correct? (Only ONE should be correct)
+     - Does the option value match what the logic describes?
+     - If logic says "Used subtraction instead", calculate what subtraction would give and verify the option value matches
+     - If logic says "Forgot to carry over", calculate without carrying and verify the option value matches
+     - If logic says "Wrong denominator", verify the option has the wrong denominator applied
+     - If logic says "Calculation error", verify the option reflects a specific calculation mistake
+  
+  B. VERIFY OPTION LOGIC:
+     - Does the logic accurately describe why this option is correct or incorrect?
+     - For the correct answer (CA): Logic should be "CA" - verify this option is indeed correct
+     - For distractors: Logic should accurately describe the specific error that leads to this wrong answer
+     - Is the logic clear, specific, and educational?
+     - Does the logic match the actual option value?
+  
+  C. CORRECT IF INCORRECT:
+     - If option value is wrong but logic is correct: Calculate the correct value based on the logic and update the option value
+     - If option value is correct but logic is wrong: Update the logic to accurately describe why it's correct/incorrect
+     - If both are wrong: Correct both the value and the logic
+     - If logic is vague or generic: Replace with specific, educational logic that describes the exact error
+     - CRITICAL: Every option value MUST be the result of applying the error described in its logic (for distractors)
+     - CRITICAL: Every logic MUST accurately describe why that specific option value is correct or incorrect
 
 STEP 6: VERIFY THE QUESTION ITSELF
 - Check if the question has any mathematical errors
@@ -115,13 +133,15 @@ CRITICAL ERROR DETECTION RULES:
    - Add error: "Solution does not match the correct answer."
    - Provide corrected solution
 
-5. If distractor logic is inaccurate:
+5. If distractor logic is inaccurate or incorrect:
    - Set hasErrors: true
-   - Add error: "Distractor logic for option [letter] is inaccurate."
-   - Provide corrected logic
+   - Add error: "Distractor logic for option [letter] is inaccurate or incorrect."
+   - Calculate what the correct logic should be based on the option value
+   - Provide corrected logic that accurately describes why this option is wrong
+   - Ensure the logic is specific and educational (not vague like "Wrong answer" or "Incorrect")
    - Ensure the option value matches the corrected logic
 
-6. If an option value does not match its logic (CRITICAL - MUST CHECK):
+6. If an option value does not match its logic (CRITICAL - MUST CHECK FOR EVERY OPTION):
    - Set hasErrors: true
    - Add error: "Option [letter] value does not match its logic. Logic says '[logic]', but value is '[current value]'."
    - Calculate what the option value SHOULD be based on the logic
@@ -132,6 +152,20 @@ CRITICAL ERROR DETECTION RULES:
      * Logic: "Wrong denominator" for fraction addition → Option should have the wrong denominator applied
      * Logic: "Calculation error" → Option should reflect a specific calculation mistake
    - CRITICAL: The option value MUST be the result of applying the error described in the logic
+
+7. If option value is correct but logic is wrong (CRITICAL - MUST CHECK):
+   - Set hasErrors: true
+   - Add error: "Option [letter] has correct value but incorrect logic. Value '[value]' is correct, but logic '[logic]' is inaccurate."
+   - For correct answer: Ensure logic is "CA"
+   - For distractors: Calculate what error would lead to this value and update logic accordingly
+   - Update the logic to accurately describe why this option is correct or incorrect
+
+8. CRITICAL: You MUST verify and correct BOTH option values AND their logic:
+   - Every option value must be mathematically verified
+   - Every logic must accurately describe the option value
+   - If either is wrong, correct it
+   - If both are wrong, correct both
+   - Do NOT leave any option with mismatched value and logic
 
 OUTPUT FORMAT (JSON only, no markdown):
 {
@@ -151,10 +185,14 @@ CRITICAL OUTPUT REQUIREMENTS:
 - If errors are found: set "hasErrors": true and provide corrected versions
 - The "correctedOptions" array MUST have EXACTLY ${options.length} options (same as input) - DO NOT add or remove options
 - Exactly ONE option MUST have "logic": "CA"
-- "verificationNotes" MUST include: "I solved the question and got [your answer]. The correct option is [letter]."
+- "verificationNotes" MUST include: 
+  * "I solved the question and got [your answer]. The correct option is [letter]."
+  * For each option that was corrected: "Option [letter]: [what was wrong and how it was corrected]"
+  * If option values or logic were corrected: "I verified each option value matches its logic. [Details of corrections made]"
 - Return ONLY valid JSON, no markdown code blocks, no explanations outside JSON
 - Be extremely careful and thorough - mathematical accuracy is critical
-- CRITICAL: Maintain the exact same number of options - if you need to fix an option, replace it in place, do not add or remove options`
+- CRITICAL: Maintain the exact same number of options - if you need to fix an option, replace it in place, do not add or remove options
+- CRITICAL: Verify and correct BOTH option values AND their logic - do not leave any mismatches`
 
     try {
       const client = getOpenAIClient()
@@ -171,8 +209,12 @@ CRITICAL INSTRUCTIONS:
 2. You MUST verify each option individually to ensure only one is correct
 3. You MUST check that the marked correct answer is actually correct
 4. You MUST verify that all distractors are actually incorrect
-5. Mathematical accuracy is paramount - be extremely thorough
-6. Always return valid JSON only, no markdown code blocks`
+5. CRITICAL: You MUST verify BOTH the option value AND its corresponding logic for EVERY option
+6. CRITICAL: If an option value does not match its logic, you MUST correct the option value to match the logic
+7. CRITICAL: If an option logic is inaccurate, you MUST correct the logic to accurately describe the option value
+8. CRITICAL: Do NOT leave any option with mismatched value and logic - correct both if needed
+9. Mathematical accuracy is paramount - be extremely thorough
+10. Always return valid JSON only, no markdown code blocks`
           },
           { role: 'user', content: verifyPrompt }
         ],
@@ -261,8 +303,12 @@ CRITICAL INSTRUCTIONS:
 2. You MUST verify each option individually to ensure only one is correct
 3. You MUST check that the marked correct answer is actually correct
 4. You MUST verify that all distractors are actually incorrect
-5. Mathematical accuracy is paramount - be extremely thorough
-6. Always return valid JSON only, no markdown code blocks`
+5. CRITICAL: You MUST verify BOTH the option value AND its corresponding logic for EVERY option
+6. CRITICAL: If an option value does not match its logic, you MUST correct the option value to match the logic
+7. CRITICAL: If an option logic is inaccurate, you MUST correct the logic to accurately describe the option value
+8. CRITICAL: Do NOT leave any option with mismatched value and logic - correct both if needed
+9. Mathematical accuracy is paramount - be extremely thorough
+10. Always return valid JSON only, no markdown code blocks`
             },
             { role: 'user', content: verifyPrompt }
           ],

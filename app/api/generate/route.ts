@@ -1,218 +1,1170 @@
-import { NextRequest, NextResponse } from "next/server";
-import { QuestionGenerationRequest, QuestionGenerationResponse, Question } from "@/types/question";
-
-const SYSTEM_PROMPT = `You are an expert educational content generator specializing in K-12 mathematics. Your task is to create high-quality, curriculum-aligned mathematics questions that assess student understanding across varying difficulty levels while adhering to specific US state standards.
-
-Core Requirements:
-
-1. Grade Level Specifications
-- Generate questions for grades K through 12
-- Ensure age-appropriate language, context, and complexity
-- Align mathematical concepts with typical grade-level expectations per state standards
-
-2. Difficulty Levels
-- Easy (Foundational): Tests basic recall and fundamental understanding. Single-step problems with straightforward application. Minimal contextual complexity. Clear, direct language.
-- Medium (Application): Requires multi-step reasoning. Integration of 2-3 related concepts. Real-world context with moderate complexity. Some interpretation needed.
-- Hard (Advanced): Complex multi-step problems requiring deep understanding. Integration of multiple concepts and skills. Abstract reasoning or non-routine problem-solving. May include extension beyond grade-level expectations.
-
-3. State Curriculum Alignment
-Support the following state standards frameworks:
-- Common Core State Standards (CCSS) - default
-- Texas Essential Knowledge and Skills (TEKS)
-- California Common Core State Standards (CA-CCSS)
-- New York Next Generation Learning Standards (NYSED)
-- Florida B.E.S.T. Standards
-- Virginia Standards of Learning (VA SOL)
-
-4. Output Format
-For each question generated, provide a JSON object with:
-- question_id: unique identifier (format: "q_[state]_[grade]_[timestamp]_[index]")
-- state: state code
-- grade: grade level (K-12)
-- domain: mathematical domain
-- sub_skill: specific skill being assessed
-- standard_code: state standard reference (e.g., "5.NF.B.4" for CCSS)
-- difficulty: "Easy", "Medium", or "Hard"
-- question_text: the complete question
-- question_type: "multiple_choice", "short_answer", "numeric", or "word_problem"
-- answer: correct answer
-- options: array of 4 options (required if question_type is "multiple_choice")
-- explanation: step-by-step solution
-- estimated_time: estimated minutes to complete
-- cognitive_level: "remember", "understand", "apply", "analyze", "evaluate", or "create"
-
-Quality Guidelines:
-- Use clear, unambiguous language appropriate to grade level
-- Ensure mathematical accuracy in all questions and solutions
-- Include diverse contexts (cultural, social, practical scenarios)
-- Avoid bias in problem contexts and examples
-- Use realistic numbers and scenarios
-- Each question should have ONE clear correct answer
-- Distractors (wrong answers) should represent common misconceptions
-- Questions should assess understanding, not trick students
-
-Return ONLY valid JSON array of question objects. Do not include any markdown formatting or code blocks.`;
-
-function buildUserPrompt(request: QuestionGenerationRequest): string {
-  const stateNames: Record<string, string> = {
-    CA: "California Common Core State Standards (CA-CCSS)",
-    TX: "Texas Essential Knowledge and Skills (TEKS)",
-    NY: "New York Next Generation Learning Standards (NYSED)",
-    FL: "Florida B.E.S.T. Standards",
-    VA: "Virginia Standards of Learning (VA SOL)",
-    CCSS: "Common Core State Standards (CCSS)"
-  };
-
-  return `Generate ${request.quantity} ${request.difficulty}-difficulty mathematics question(s) with the following specifications:
-
-State: ${request.state} (${stateNames[request.state] || "Common Core"})
-Grade: ${request.grade}
-Sub-skill: ${request.sub_skill}
-Difficulty: ${request.difficulty}
-Quantity: ${request.quantity}
-
-Ensure each question:
-1. Is aligned with the specified state standard for the given grade and sub-skill
-2. Has appropriate difficulty level for ${request.difficulty}
-3. Uses clear, grade-appropriate language
-4. Includes complete metadata (standard_code, domain, etc.)
-5. Has accurate mathematical solutions
-6. Includes options array if question_type is "multiple_choice"
-
-Return the questions as a JSON array.`;
-}
+import { NextRequest, NextResponse } from 'next/server'
+import { getOpenAIClient, generateImageForQuestion } from '@/lib/openai'
+import { loadCurriculumSubskills } from '@/lib/curriculum'
+import { parseNumberOfOptions, determineQuestionType } from '@/lib/question-utils'
 
 export async function POST(request: NextRequest) {
   try {
-    const body: QuestionGenerationRequest = await request.json();
-
-    // Validate request
-    if (!body.state || !body.grade || !body.sub_skill || !body.difficulty || !body.quantity) {
-      return NextResponse.json(
-        { success: false, error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
-
-    if (body.quantity < 1 || body.quantity > 10) {
-      return NextResponse.json(
-        { success: false, error: "Quantity must be between 1 and 10" },
-        { status: 400 }
-      );
-    }
-
-    // Check for API key
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      // Return mock data for development if no API key is set
-      console.warn("OPENAI_API_KEY not set. Returning mock data.");
-      const mockQuestions: Question[] = Array.from({ length: body.quantity }, (_, i) => ({
-        question_id: `q_${body.state}_${body.grade}_${Date.now()}_${i}`,
-        state: body.state,
-        grade: body.grade,
-        domain: "Mathematics",
-        sub_skill: body.sub_skill,
-        standard_code: `${body.grade}.NF.B.4`,
-        difficulty: body.difficulty,
-        question_text: `[Mock Question ${i + 1}] This is a placeholder question for ${body.sub_skill} at grade ${body.grade} level with ${body.difficulty} difficulty. Please set OPENAI_API_KEY environment variable to generate real questions.`,
-        question_type: "multiple_choice",
-        answer: "Option A",
-        options: ["Option A", "Option B", "Option C", "Option D"],
-        explanation: "This is a mock explanation. Set OPENAI_API_KEY to generate real questions.",
-        estimated_time: "5",
-        cognitive_level: "apply"
-      }));
-
-      return NextResponse.json({
-        success: true,
-        questions: mockQuestions
-      } as QuestionGenerationResponse);
-    }
-
-    // Call OpenAI API
-    const userPrompt = buildUserPrompt(body);
+    const data = await request.json()
     
-    const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`
-      },
-        body: JSON.stringify({
-          model: "gpt-4o-mini", // Using gpt-4o-mini for cost efficiency, can be changed to gpt-4o for better quality
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: userPrompt + "\n\nReturn the questions as a JSON array in this format: {\"questions\": [question1, question2, ...]}" }
-          ],
-          temperature: 0.7,
-          response_format: { type: "json_object" }
-        })
-    });
-
-    if (!openaiResponse.ok) {
-      const errorData = await openaiResponse.json().catch(() => ({}));
-      throw new Error(`OpenAI API error: ${openaiResponse.status} - ${JSON.stringify(errorData)}`);
-    }
-
-    const data = await openaiResponse.json();
-    const content = data.choices[0]?.message?.content;
-
-    if (!content) {
-      throw new Error("No content received from OpenAI API");
-    }
-
-    // Parse JSON response
-    let parsedContent;
-    try {
-      parsedContent = JSON.parse(content);
-    } catch (parseError) {
-      // Try to extract JSON from markdown code blocks if present
-      const jsonMatch = content.match(/```(?:json)?\s*(\{.*\})\s*```/s);
-      if (jsonMatch) {
-        parsedContent = JSON.parse(jsonMatch[1]);
-      } else {
-        throw new Error("Failed to parse JSON response");
+    // Validate required fields
+    const requiredFields = ['baseQuestion', 'numCopyQuestions', 'model']
+    for (const field of requiredFields) {
+      if (!data[field]) {
+        return NextResponse.json(
+          { error: `Missing required field: ${field}` },
+          { status: 400 }
+        )
       }
     }
-
-    // Extract questions array (handle both {questions: [...]} and [...] formats)
-    let questions: Question[] = [];
-    if (Array.isArray(parsedContent)) {
-      questions = parsedContent;
-    } else if (parsedContent.questions && Array.isArray(parsedContent.questions)) {
-      questions = parsedContent.questions;
-    } else if (parsedContent.question && Array.isArray(parsedContent.question)) {
-      questions = parsedContent.question;
-    } else {
-      // Single question object
-      questions = [parsedContent];
-    }
-
-    // Ensure we have the right number of questions
-    if (questions.length > body.quantity) {
-      questions = questions.slice(0, body.quantity);
-    }
-
-    // Validate and add question_ids if missing
-    questions = questions.map((q, i) => ({
-      ...q,
-      question_id: q.question_id || `q_${body.state}_${body.grade}_${Date.now()}_${i}`
-    }));
-
-    return NextResponse.json({
-      success: true,
-      questions
-    } as QuestionGenerationResponse);
-
-  } catch (error) {
-    console.error("Error generating questions:", error);
+    
+    // Parse number of options
+    const baseQuestion = data.baseQuestion || ''
+    const numOptions = data.numOptions 
+      ? parseInt(data.numOptions, 10)
+      : parseNumberOfOptions(baseQuestion)
+    
+    const difficulty = data.difficulty || 'Medium'
+    const grade = data.grade || ''
+    const curriculum = data.curriculum || ''
+    const notes = (data.notes || '').trim() // Ensure empty string if only whitespace
+    const solution = data.solution || ''
+    const images = data.images || ''
+    const imageFiles = data.imageFiles || [] // Array of base64 encoded images
+    const numQuestions = parseInt(data.numCopyQuestions, 10)
+    const model = data.model || 'gpt-4o'
+    const questionTypeFromUrl = data.questionType || null
+    
+    // Generate questions
+    const questions = await generateQuestionsWithGPT(
+      baseQuestion,
+      notes,
+      solution,
+      images,
+      imageFiles,
+      numOptions,
+      numQuestions,
+      difficulty,
+      grade,
+      curriculum,
+      model,
+      questionTypeFromUrl
+    )
+    
+    return NextResponse.json({ questions })
+  } catch (error: any) {
+    console.error('Error generating questions:', error)
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred"
-      },
+      { error: error.message || 'Failed to generate questions' },
       { status: 500 }
-    );
+    )
+  }
+}
+
+async function generateQuestionsWithGPT(
+  baseQuestion: string,
+  notes: string,
+  solution: string,
+  images: string,
+  imageFiles: any[],
+  numOptions: number,
+  numQuestions: number,
+  difficulty: string,
+  grade: string,
+  curriculum: string,
+  model: string,
+  questionTypeFromUrl: string | null
+) {
+  // Load relevant subskills
+  let subskillsText = 'General math concepts'
+  if (grade && curriculum) {
+    const subskills = loadCurriculumSubskills(grade, curriculum)
+    subskillsText = subskills.slice(0, 4).join(', ') || 'General math concepts'
+  }
+  
+  // Determine question type
+  let questionType: 'mathematical' | 'word_problem' | 'image_based'
+  if (questionTypeFromUrl) {
+    if (questionTypeFromUrl === 'word-problems') {
+      questionType = 'word_problem'
+    } else if (questionTypeFromUrl === 'mathematical') {
+      questionType = 'mathematical'
+    } else if (questionTypeFromUrl === 'image-based') {
+      questionType = 'image_based'
+    } else {
+      questionType = determineQuestionType(baseQuestion, notes)
+    }
+  } else {
+    questionType = determineQuestionType(baseQuestion, notes)
+  }
+  
+  // Build system prompt - TIER 1: Universal System Requirements
+  const systemPrompt = `You are an expert educational content generator specializing in creating high-quality mathematical questions aligned with US curricula standards. Your primary task is to generate pedagogically sound multiple-choice questions that test specific mathematical skills and concepts while maintaining strict adherence to provided guidelines and formats.
+
+You will follow a three-tier hierarchical approach when generating questions:
+
+TIER 1: Universal System Requirements (Always Apply)
+These rules apply to ALL questions regardless of type.
+
+1.1 Format Preservation (CRITICAL)
+- Preserve EXACT format and structure of the base question
+- Maintain SAME question type and presentation style
+- Match punctuation, capitalization, and formatting exactly
+- Replicate any special formatting (bold, italics, mathematical notation)
+
+1.2 Mathematical Correctness (CRITICAL)
+- All questions must be mathematically accurate
+- Verify calculations before finalizing
+- Ensure solutions exist and are mathematically valid
+- Check that all conditions are consistent with no contradictions
+
+1.3 Answer Accuracy (CRITICAL - MUST VERIFY)
+- CRITICAL: You MUST solve each question completely before marking any option as correct
+- The correct answer must be verified by solving the problem step-by-step
+- Work backward from the answer to confirm it satisfies all conditions
+- Double-check all calculations to avoid errors
+- DO NOT mark an option as "CA" (Correct Answer) unless you have verified it is mathematically correct
+- If you are unsure, solve the problem completely first, then mark the verified correct answer
+- Incorrect answers marked as CA will cause significant errors
+
+1.4 Number of Options (CRITICAL - EXACT MATCH REQUIRED)
+- CRITICAL: You MUST match the EXACT number of options from the base question
+- If base has 4 options, you MUST generate EXACTLY 4 options - NO MORE, NO LESS
+- If base has 3 options, you MUST generate EXACTLY 3 options - NO MORE, NO LESS
+- If base has 2 options, you MUST generate EXACTLY 2 options - NO MORE, NO LESS
+- Count the options in the base question carefully before generating
+- The number of options is specified as ${numOptions} - you MUST generate EXACTLY ${numOptions} options per question
+- DO NOT add extra options or remove options - the count must match exactly
+
+1.5 Distractor Generation Strategy
+You must create distractors (incorrect options) using a varied mix of the following approaches:
+A. Base Question Options (when applicable) - Adapt distractor logic from the base question's options
+B. Common Student Errors - Include options that reflect typical mistakes students make (sign errors, order of operations mistakes, formula misapplication)
+C. Plausible Distractors - Calculation errors (one step wrong, but logical), numbers that appear in the problem but aren't the answer, results from incorrect methods that seem reasonable
+
+CRITICAL: Options must NOT follow a predictable pattern. Mix different distractor types across your generated questions.
+
+1.6 Auto-Check Requirement
+Before providing your final answer, you must:
+- Solve each question completely
+- Verify the correct answer
+- Check that distractors are plausible but incorrect
+- Confirm all formatting matches the base question
+- CRITICAL: Verify that you have generated EXACTLY ${numOptions} options (count them!)
+- CRITICAL: Verify that all SME notes (if provided) have been followed precisely
+
+1.7 SME Notes Compliance (CRITICAL - HIGHEST PRIORITY)
+- SME notes are provided by Subject Matter Experts and contain specific requirements
+- CRITICAL: SME notes have HIGHEST PRIORITY - they override and supplement all other instructions
+- CRITICAL: You MUST follow ALL instructions in SME notes precisely and completely
+- If SME notes specify certain constraints, formats, or requirements, you MUST adhere to them
+- If SME notes specify certain answer types, number ranges, or formats, you MUST use them
+- If SME notes specify certain scenarios or contexts, you MUST incorporate them
+- DO NOT ignore or skip any part of the SME notes
+- SME notes are MANDATORY - treat them as non-negotiable requirements
+- CRITICAL: If SME notes mention a VARIATION of the question, you MUST generate that variation IN ADDITION to the base question
+- CRITICAL: If SME notes specify how many questions should be generated for a variation, you MUST generate EXACTLY that number of variation questions
+- CRITICAL: Variation questions should follow the variation requirements specified in SME notes while maintaining the base question structure
+- Example: If SME notes say "Generate 3 questions with variation X", generate 3 questions using variation X in addition to any base question variations
+
+1.8 Anti-Hallucination Requirements (CRITICAL - NO FABRICATION)
+- CRITICAL: You MUST base ALL content ONLY on the provided base question, SME notes, and explicit instructions
+- DO NOT invent, fabricate, or add information that is NOT present in the base question or SME notes
+- DO NOT add extra details, facts, or context that were not in the original base question
+- DO NOT create scenarios, characters, or situations that deviate from what's provided
+- DO NOT invent mathematical concepts, formulas, or methods not present in the base question
+- DO NOT add unnecessary complexity or additional constraints not in the original
+- DO NOT make up numbers, values, or quantities that aren't derived from the base question
+- DO NOT add cultural references, names, or details not present in the base question
+- DO NOT create solutions or methods that weren't implied by the base question structure
+- CRITICAL: If information is not explicitly provided, DO NOT assume or invent it
+- CRITICAL: Every element in your generated question must trace back to the base question or SME notes
+- When varying content, ONLY change what is explicitly allowed (numbers, names, contexts) while maintaining structure
+- If unsure whether to include something, ask: "Was this in the base question or SME notes?" If NO, exclude it
+- Verify: Every sentence, number, and concept in your generated question has a clear source in the provided materials
+- DO NOT hallucinate: If you don't see it in the base question or SME notes, it doesn't exist - don't create it`
+  
+  // Build user prompt
+  const solutionText = solution ? `\nBase Solution: ${solution}` : ''
+  const imageInfo = images ? `\nBase Question Image Description: ${images}` : ''
+  const uploadedImageInfo = imageFiles.length > 0 
+    ? `\nBase Question Uploaded Images: ${imageFiles.length} image(s) uploaded. These images are provided as base64 data and should be used as reference for generating similar visual elements.`
+    : ''
+  const shouldGenerateImages = Boolean(images || imageFiles.length)
+  
+  let userPrompt = ''
+  
+  if (questionType === 'mathematical') {
+    userPrompt = `${'='.repeat(80)}
+⚠️⚠️⚠️ CRITICAL: YOU MUST GENERATE EXACTLY ${numQuestions} QUESTIONS - NO MORE, NO LESS ⚠️⚠️⚠️
+CRITICAL: The response MUST contain EXACTLY ${numQuestions} question objects in the JSON array.
+CRITICAL: If you generate fewer than ${numQuestions} questions, the request will fail.
+CRITICAL: If you generate more than ${numQuestions} questions, only the first ${numQuestions} will be used.
+CRITICAL: Count your questions before submitting - ensure the array has EXACTLY ${numQuestions} elements.
+${'='.repeat(80)}
+
+BASE QUESTION (STUDY THIS CAREFULLY):
+${baseQuestion}
+
+${'='.repeat(80)}
+⚠️⚠️⚠️ ANTI-HALLUCINATION CHECKLIST ⚠️⚠️⚠️
+${'='.repeat(80)}
+Before generating each question, verify:
+- Am I only using information from the BASE QUESTION provided above?
+- Am I only using requirements from SME NOTES (if provided)?
+- Have I avoided adding any details NOT present in the base question?
+- Have I avoided inventing scenarios, characters, or contexts not in the base?
+- Are all numbers and values derived from or variations of the base question?
+- Have I avoided adding mathematical concepts not present in the base question?
+- Have I avoided adding unnecessary complexity or constraints?
+- Can I trace every element of my generated question back to the base question or SME notes?
+
+CRITICAL RULE: If you cannot identify the source of an element in the base question or SME notes, DO NOT include it.
+${'='.repeat(80)}
+
+${notes && notes.length > 0 ? `\n${'='.repeat(80)}
+⚠️⚠️⚠️ TIER 3: SME NOTES (HIGHEST PRIORITY - ABSOLUTE MANDATORY REQUIREMENTS) ⚠️⚠️⚠️
+${'='.repeat(80)}
+CRITICAL: The following SME notes are MANDATORY and have HIGHEST PRIORITY over all other instructions.
+CRITICAL: You MUST follow EVERY requirement in these SME notes precisely and completely.
+CRITICAL: SME notes override and supplement Tiers 1 and 2 - they are non-negotiable.
+CRITICAL: If SME notes conflict with other instructions, SME notes take precedence.
+CRITICAL: Read these notes carefully and ensure ALL requirements are met in EVERY generated question.
+
+SME NOTES CONTENT:
+${notes}
+
+⚠️⚠️⚠️ VARIATION HANDLING (CRITICAL) ⚠️⚠️⚠️
+CRITICAL: If the SME notes mention a VARIATION of the question, you MUST generate that variation IN ADDITION to the base question.
+CRITICAL: If SME notes specify how many questions should be generated for a variation (e.g., "Generate 3 questions with variation X"), you MUST generate EXACTLY that number of variation questions.
+CRITICAL: Variation questions should follow the variation requirements specified in SME notes while maintaining the base question structure and format.
+CRITICAL: The total number of questions generated should include both base question variations AND variation questions as specified in SME notes.
+CRITICAL: If SME notes say "Generate 2 questions with variation Y", generate 2 questions using variation Y in addition to any other questions requested.
+
+⚠️⚠️⚠️ VERIFICATION CHECKLIST FOR SME NOTES ⚠️⚠️⚠️
+Before finalizing each question, verify:
+- Have I read and understood ALL SME notes requirements?
+- Have I incorporated ALL requirements from SME notes into this question?
+- Does this question follow ALL constraints specified in SME notes?
+- Does this question use ALL formats/types specified in SME notes?
+- If SME notes specify answer types/ranges/formats, does this question use them?
+- If SME notes specify scenarios/contexts, does this question incorporate them?
+- Have I followed EVERY instruction in the SME notes, not just some of them?
+- If SME notes mention variations, have I generated the specified number of variation questions?
+- If SME notes specify variation requirements, does this question follow those variation requirements?
+
+CRITICAL: These are the ONLY SME notes for this request. Do NOT use any notes from previous requests or conversations.
+${'='.repeat(80)}\n` : '\nTIER 3: SME NOTES - None provided.\nCRITICAL: There are NO SME notes for this request. Do NOT use any notes from previous requests or conversations.\nProceed with Tiers 1 and 2 only. Ignore any notes that may have been mentioned in previous interactions.\n'}
+
+${solution ? `Base Solution: ${solution}\n` : ''}${imageInfo ? `${imageInfo}\n` : ''}
+
+TIER 2: Question-Specific Requirements - 2A: Mathematical Questions
+
+Characteristics: Equations, expressions, calculations without real-world scenarios. No images/graphs.
+
+Apply These Additional Requirements:
+
+Mathematical Accuracy
+- Verify all calculations are correct before finalizing
+- Ensure solutions exist and are mathematically valid
+- Check that all given conditions are consistent (no contradictions)
+
+Problem Structure
+- Clearly define what is given and what needs to be found
+- Use proper mathematical notation and symbols
+- Ensure the question is unambiguous
+- Maintain logical flow from given information to the question
+
+Answer Verification (CRITICAL)
+- You MUST solve each question completely before generating options
+- Work backward from the answer to verify it satisfies all conditions
+- Check for extraneous solutions (e.g., square root problems, rational equations)
+- Ensure the answer is in the requested form (simplified, exact, decimal, fraction, etc.)
+- Verify units/dimensions if applicable
+- CRITICAL: Only mark an option as "CA" if you have verified it is mathematically correct by solving the problem
+- Double-check your calculations - incorrect answers marked as CA will cause errors
+
+CRITICAL REQUIREMENTS FOR OPTIONS AND CORRECT ANSWERS:
+
+1. OPTIONS FORMAT:
+   - Each option MUST have a "text" field containing a COMPLETE, MEANINGFUL answer (e.g., "5/12", "0.42", "3/4", "2.5")
+   - DO NOT use placeholder text like "Option A", "Option B", "Choice A", etc.
+   - Each option MUST be a real, complete answer that a student could choose
+   - Options should be in the same format as the base question's options (fractions, decimals, whole numbers, etc.)
+
+2. CORRECT ANSWER (CRITICAL - MUST BE VERIFIED):
+   - ONE and ONLY ONE option per question MUST have "logic": "CA" (Correct Answer)
+   - CRITICAL: You MUST solve each question completely before marking the correct answer
+   - The correct answer MUST be mathematically correct - verify by solving the problem step-by-step
+   - Work backward from your answer to confirm it satisfies all conditions in the question
+   - The correct answer MUST follow all SME notes requirements
+   - Mark the correct answer clearly with "logic": "CA" - DO NOT mark incorrect answers as CA
+   - If you are unsure which answer is correct, solve the problem completely first, then mark the verified correct answer
+   
+   VERIFICATION PROCESS (MANDATORY - FOLLOW THESE STEPS):
+   Step 1: Read the question carefully and identify what is being asked
+   Step 2: Solve the problem completely step-by-step (show your work mentally)
+   Step 3: Calculate the final answer
+   Step 4: Verify your answer by plugging it back into the problem or checking it
+   Step 5: Check that your answer satisfies all conditions in the question
+   Step 6: Only then, mark the option with your verified answer as "logic": "CA"
+   Step 7: Generate distractors (incorrect options) with appropriate logic
+   
+   EXAMPLE OF CORRECT PROCESS:
+   Question: "What is 15 + 27?"
+   Step 1: Identify: Addition problem
+   Step 2: Solve: 15 + 27 = 42
+   Step 3: Verify: 42 - 15 = 27 ✓ (correct)
+   Step 4: Mark option with "42" as "logic": "CA"
+   Step 5: Generate distractors: "40" (logic: "Forgot to add ones"), "43" (logic: "Added incorrectly"), etc.
+   
+   ❌ WRONG: Marking "40" as CA because it's close to the answer
+   ❌ WRONG: Marking the first option as CA without solving
+   ❌ WRONG: Marking multiple options as CA
+   ❌ WRONG: Guessing which answer is correct
+   ✅ CORRECT: Solving completely, verifying, then marking only the verified correct answer as CA
+
+3. INCORRECT OPTIONS (DISTRACTORS):
+   - Each incorrect option MUST have a "logic" field explaining the error
+   - Logic must be SHORT (3-6 words) describing the mistake
+   - Distractors should be based on ACTUAL ERRORS students would make
+   - Examples: "Added instead of multiplied", "Forgot to carry over", "Wrong denominator", "Calculation error"
+
+4. OPTIONS COUNT:
+   - Each question MUST have EXACTLY ${numOptions} options
+   - All ${numOptions} options must be complete and valid answers
+
+5. STEP-BY-STEP SOLUTIONS (CRITICAL - MUST BE COMPLETE AND DETAILED):
+   - Each question MUST include a COMPLETE, DETAILED step-by-step solution in the "solution" field
+   - CRITICAL: The solution MUST be complete in all sense - show ALL steps, calculations, and reasoning
+   - CRITICAL: Format each step on a NEW LINE using "Step 1:", "Step 2:", "Step 3:", etc. or numbered format
+   - Each step MUST be clearly separated and on its own line for readability
+   - Include ALL intermediate calculations and explanations
+   - Show the complete work from start to finish - do NOT skip steps
+   - Verify the final answer matches the correct option
+   - Show the logical progression from the problem statement to the final answer with ALL steps
+   - Make it educational and easy to follow - a student should be able to understand each step
+   - Format: Use line breaks between steps (each step on a new line)
+   ${solution ? '- Base the solution on the provided base solution, adapting steps to match each question\'s numbers/context' : ''}
+   - Example format:
+     "Step 1: [First step explanation and calculation]\nStep 2: [Second step explanation and calculation]\nStep 3: [Final step and answer]"
+
+QUALITY CHECKLIST (Self-Verify Before Finalizing):
+✅ Format matches base question exactly
+✅ Correct answer is mathematically verified
+✅ Options don't follow a predictable pattern
+✅ CRITICAL: Number of options is EXACTLY ${numOptions} - count them to verify!
+✅ CRITICAL: ALL SME notes (if provided) have been followed PRECISELY - verify each requirement
+✅ CRITICAL: Solution is COMPLETE with ALL steps shown - verify no steps are skipped
+✅ CRITICAL: Solution is formatted with each step on a new line for readability
+✅ No mathematical errors or logical contradictions
+
+JSON FORMAT REQUIREMENTS:
+⚠️⚠️⚠️ CRITICAL: YOU MUST GENERATE EXACTLY ${numQuestions} QUESTIONS - NO MORE, NO LESS ⚠️⚠️⚠️
+CRITICAL: The response MUST contain EXACTLY ${numQuestions} question objects in the JSON array.
+CRITICAL: If you generate fewer than ${numQuestions} questions, the request will fail.
+CRITICAL: If you generate more than ${numQuestions} questions, only the first ${numQuestions} will be used.
+CRITICAL: Count your questions before submitting - ensure the array has EXACTLY ${numQuestions} elements.
+${'='.repeat(80)}
+
+BASE QUESTION (STUDY THIS CAREFULLY):
+${baseQuestion}
+
+${'='.repeat(80)}
+⚠️⚠️⚠️ ANTI-HALLUCINATION CHECKLIST ⚠️⚠️⚠️
+${'='.repeat(80)}
+Before generating each question, verify:
+- Am I only using information from the BASE QUESTION provided above?
+- Am I only using requirements from SME NOTES (if provided)?
+- Have I avoided adding any details NOT present in the base question?
+- Have I avoided inventing scenarios, characters, or contexts not in the base?
+- Are all numbers and values derived from or variations of the base question?
+- Have I avoided adding mathematical concepts not present in the base question?
+- Have I avoided adding unnecessary complexity or constraints?
+- Can I trace every element of my generated question back to the base question or SME notes?
+
+CRITICAL RULE: If you cannot identify the source of an element in the base question or SME notes, DO NOT include it.
+${'='.repeat(80)}
+
+${notes && notes.length > 0 ? `\n${'='.repeat(80)}
+⚠️⚠️⚠️ TIER 3: SME NOTES (HIGHEST PRIORITY - ABSOLUTE MANDATORY REQUIREMENTS) ⚠️⚠️⚠️
+${'='.repeat(80)}
+CRITICAL: The following SME notes are MANDATORY and have HIGHEST PRIORITY over all other instructions.
+CRITICAL: You MUST follow EVERY requirement in these SME notes precisely and completely.
+CRITICAL: SME notes override and supplement Tiers 1 and 2 - they are non-negotiable.
+CRITICAL: If SME notes conflict with other instructions, SME notes take precedence.
+CRITICAL: Read these notes carefully and ensure ALL requirements are met in EVERY generated question.
+
+SME NOTES CONTENT:
+${notes}
+
+⚠️⚠️⚠️ VARIATION HANDLING (CRITICAL) ⚠️⚠️⚠️
+CRITICAL: If the SME notes mention a VARIATION of the question, you MUST generate that variation IN ADDITION to the base question.
+CRITICAL: If SME notes specify how many questions should be generated for a variation (e.g., "Generate 3 questions with variation X"), you MUST generate EXACTLY that number of variation questions.
+CRITICAL: Variation questions should follow the variation requirements specified in SME notes while maintaining the base question structure and format.
+CRITICAL: The total number of questions generated should include both base question variations AND variation questions as specified in SME notes.
+CRITICAL: If SME notes say "Generate 2 questions with variation Y", generate 2 questions using variation Y in addition to any other questions requested.
+
+⚠️⚠️⚠️ VERIFICATION CHECKLIST FOR SME NOTES ⚠️⚠️⚠️
+Before finalizing each question, verify:
+- Have I read and understood ALL SME notes requirements?
+- Have I incorporated ALL requirements from SME notes into this question?
+- Does this question follow ALL constraints specified in SME notes?
+- Does this question use ALL formats/types specified in SME notes?
+- If SME notes specify answer types/ranges/formats, does this question use them?
+- If SME notes specify scenarios/contexts, does this question incorporate them?
+- Have I followed EVERY instruction in the SME notes, not just some of them?
+- If SME notes mention variations, have I generated the specified number of variation questions?
+- If SME notes specify variation requirements, does this question follow those variation requirements?
+
+CRITICAL: These are the ONLY SME notes for this request. Do NOT use any notes from previous requests or conversations.
+${'='.repeat(80)}\n` : '\nTIER 3: SME NOTES - None provided.\nCRITICAL: There are NO SME notes for this request. Do NOT use any notes from previous requests or conversations.\nProceed with Tiers 1 and 2 only. Ignore any notes that may have been mentioned in previous interactions.\n'}
+
+${solution ? `Base Solution: ${solution}\n` : ''}${imageInfo ? `${imageInfo}\n` : ''}
+
+TIER 2: Question-Specific Requirements - 2A: Mathematical Questions
+
+Characteristics: Equations, expressions, calculations without real-world scenarios. No images/graphs.
+
+Apply These Additional Requirements:
+
+Mathematical Accuracy
+- Verify all calculations are correct before finalizing
+- Ensure solutions exist and are mathematically valid
+- Check that all given conditions are consistent (no contradictions)
+
+Problem Structure
+- Clearly define what is given and what needs to be found
+- Use proper mathematical notation and symbols
+- Ensure the question is unambiguous
+- Maintain logical flow from given information to the question
+
+Answer Verification (CRITICAL)
+- You MUST solve each question completely before generating options
+- Work backward from the answer to verify it satisfies all conditions
+- Check for extraneous solutions (e.g., square root problems, rational equations)
+- Ensure the answer is in the requested form (simplified, exact, decimal, fraction, etc.)
+- Verify units/dimensions if applicable
+- CRITICAL: Only mark an option as "CA" if you have verified it is mathematically correct by solving the problem
+- Double-check your calculations - incorrect answers marked as CA will cause errors
+
+CRITICAL REQUIREMENTS FOR OPTIONS AND CORRECT ANSWERS:
+
+1. OPTIONS FORMAT:
+   - Each option MUST have a "text" field containing a COMPLETE, MEANINGFUL answer (e.g., "5/12", "0.42", "3/4", "2.5")
+   - DO NOT use placeholder text like "Option A", "Option B", "Choice A", etc.
+   - Each option MUST be a real, complete answer that a student could choose
+   - Options should be in the same format as the base question's options (fractions, decimals, whole numbers, etc.)
+
+2. CORRECT ANSWER (CRITICAL - MUST BE VERIFIED):
+   - ONE and ONLY ONE option per question MUST have "logic": "CA" (Correct Answer)
+   - CRITICAL: You MUST solve each question completely before marking the correct answer
+   - The correct answer MUST be mathematically correct - verify by solving the problem step-by-step
+   - Work backward from your answer to confirm it satisfies all conditions in the question
+   - The correct answer MUST follow all SME notes requirements
+   - Mark the correct answer clearly with "logic": "CA" - DO NOT mark incorrect answers as CA
+   - If you are unsure which answer is correct, solve the problem completely first, then mark the verified correct answer
+   
+   VERIFICATION PROCESS (MANDATORY - FOLLOW THESE STEPS):
+   Step 1: Read the question carefully and identify what is being asked
+   Step 2: Solve the problem completely step-by-step (show your work mentally)
+   Step 3: Calculate the final answer
+   Step 4: Verify your answer by plugging it back into the problem or checking it
+   Step 5: Check that your answer satisfies all conditions in the question
+   Step 6: Only then, mark the option with your verified answer as "logic": "CA"
+   Step 7: Generate distractors (incorrect options) with appropriate logic
+   
+   EXAMPLE OF CORRECT PROCESS:
+   Question: "What is 15 + 27?"
+   Step 1: Identify: Addition problem
+   Step 2: Solve: 15 + 27 = 42
+   Step 3: Verify: 42 - 15 = 27 ✓ (correct)
+   Step 4: Mark option with "42" as "logic": "CA"
+   Step 5: Generate distractors: "40" (logic: "Forgot to add ones"), "43" (logic: "Added incorrectly"), etc.
+   
+   ❌ WRONG: Marking "40" as CA because it's close to the answer
+   ❌ WRONG: Marking the first option as CA without solving
+   ❌ WRONG: Marking multiple options as CA
+   ❌ WRONG: Guessing which answer is correct
+   ✅ CORRECT: Solving completely, verifying, then marking only the verified correct answer as CA
+
+3. INCORRECT OPTIONS (DISTRACTORS):
+   - Each incorrect option MUST have a "logic" field explaining the error
+   - Logic must be SHORT (3-6 words) describing the mistake
+   - Distractors should be based on ACTUAL ERRORS students would make
+   - Examples: "Added instead of multiplied", "Forgot to carry over", "Wrong denominator", "Calculation error"
+
+4. OPTIONS COUNT:
+   - Each question MUST have EXACTLY ${numOptions} options
+   - All ${numOptions} options must be complete and valid answers
+
+5. STEP-BY-STEP SOLUTIONS (CRITICAL - MUST BE COMPLETE AND DETAILED):
+   - Each question MUST include a COMPLETE, DETAILED step-by-step solution in the "solution" field
+   - CRITICAL: The solution MUST be complete in all sense - show ALL steps, calculations, and reasoning
+   - CRITICAL: Format each step on a NEW LINE using "Step 1:", "Step 2:", "Step 3:", etc. or numbered format
+   - Each step MUST be clearly separated and on its own line for readability
+   - Include ALL intermediate calculations and explanations
+   - Show the complete work from start to finish - do NOT skip steps
+   - Verify the final answer matches the correct option
+   - Show the logical progression from the problem statement to the final answer with ALL steps
+   - Make it educational and easy to follow - a student should be able to understand each step
+   - Format: Use line breaks between steps (each step on a new line)
+   ${solution ? '- Base the solution on the provided base solution, adapting steps to match each question\'s numbers/context' : ''}
+   - Example format:
+     "Step 1: [First step explanation and calculation]\nStep 2: [Second step explanation and calculation]\nStep 3: [Final step and answer]"
+
+QUALITY CHECKLIST (Self-Verify Before Finalizing):
+✅ Format matches base question exactly
+✅ Correct answer is mathematically verified
+✅ Options don't follow a predictable pattern
+✅ CRITICAL: Number of options is EXACTLY ${numOptions} - count them to verify!
+✅ CRITICAL: ALL SME notes (if provided) have been followed PRECISELY - verify each requirement
+✅ CRITICAL: Solution is COMPLETE with ALL steps shown - verify no steps are skipped
+✅ CRITICAL: Solution is formatted with each step on a new line for readability
+✅ No mathematical errors or logical contradictions
+
+JSON FORMAT REQUIREMENTS:
+- Your FIRST character MUST be [ (opening square bracket)
+- Your LAST character MUST be ] (closing square bracket)
+- Return ONLY a valid JSON array starting with [ and ending with ]
+- NO markdown code blocks (no \`\`\`json or \`\`\`)
+- NO explanations or text before or after the JSON
+- Start response immediately with [
+- End response with ]
+
+EXAMPLE FORMAT:
+[{"question": "...", "options": [{"text": "...", "logic": "CA"}, {"text": "...", "logic": "..."}, ...], "image": "", "solution": "..."}, ...]
+
+CRITICAL FINAL REMINDER:
+- You MUST return EXACTLY ${numQuestions} questions in the JSON array
+- CRITICAL: Each question MUST have EXACTLY ${numOptions} options - NO MORE, NO LESS
+- Count your questions: The array must have exactly ${numQuestions} elements, no more, no less
+- Count options in EACH question: Every question must have exactly ${numOptions} options
+- Verify before submitting: Check that your JSON array contains exactly ${numQuestions} question objects
+- Verify before submitting: Check that EACH question object has exactly ${numOptions} options in its options array
+- ${notes && notes.length > 0 ? 'CRITICAL: Verify that ALL SME notes requirements have been followed in EVERY question' : ''}`
+  } else {
+    // Word Problems or Image-Based Questions
+    const isImageBased = questionType === 'image_based'
+    const questionTypeLabel = isImageBased ? 'Image-Based Questions' : 'Word Problems / Real-World Problems'
+    const tier2Section = isImageBased ? '2C: Image-Based Questions' : '2B: Word Problems / Real-World Problems'
+    
+    userPrompt = `${'='.repeat(80)}
+⚠️⚠️⚠️ CRITICAL: YOU MUST GENERATE EXACTLY ${numQuestions} QUESTIONS - NO MORE, NO LESS ⚠️⚠️⚠️
+CRITICAL: The response MUST contain EXACTLY ${numQuestions} question objects in the JSON array.
+CRITICAL: If you generate fewer than ${numQuestions} questions, the request will fail.
+CRITICAL: If you generate more than ${numQuestions} questions, only the first ${numQuestions} will be used.
+CRITICAL: Count your questions before submitting - ensure the array has EXACTLY ${numQuestions} elements.
+${'='.repeat(80)}
+
+BASE QUESTION (STUDY THIS CAREFULLY):
+${baseQuestion}
+
+${'='.repeat(80)}
+⚠️⚠️⚠️ ANTI-HALLUCINATION CHECKLIST ⚠️⚠️⚠️
+${'='.repeat(80)}
+Before generating each question, verify:
+- Am I only using information from the BASE QUESTION provided above?
+- Am I only using requirements from SME NOTES (if provided)?
+- Have I avoided adding any details NOT present in the base question?
+- Have I avoided inventing scenarios, characters, or contexts not in the base?
+- Are all numbers and values derived from or variations of the base question?
+- Have I avoided adding mathematical concepts not present in the base question?
+- Have I avoided adding unnecessary complexity or constraints?
+- Can I trace every element of my generated question back to the base question or SME notes?
+
+CRITICAL RULE: If you cannot identify the source of an element in the base question or SME notes, DO NOT include it.
+${'='.repeat(80)}
+
+${notes && notes.length > 0 ? `\n${'='.repeat(80)}
+⚠️⚠️⚠️ TIER 3: SME NOTES (HIGHEST PRIORITY - ABSOLUTE MANDATORY REQUIREMENTS) ⚠️⚠️⚠️
+${'='.repeat(80)}
+CRITICAL: The following SME notes are MANDATORY and have HIGHEST PRIORITY over all other instructions.
+CRITICAL: You MUST follow EVERY requirement in these SME notes precisely and completely.
+CRITICAL: SME notes override and supplement Tiers 1 and 2 - they are non-negotiable.
+CRITICAL: If SME notes conflict with other instructions, SME notes take precedence.
+CRITICAL: Read these notes carefully and ensure ALL requirements are met in EVERY generated question.
+
+SME NOTES CONTENT:
+${notes}
+
+⚠️⚠️⚠️ VARIATION HANDLING (CRITICAL) ⚠️⚠️⚠️
+CRITICAL: If the SME notes mention a VARIATION of the question, you MUST generate that variation IN ADDITION to the base question.
+CRITICAL: If SME notes specify how many questions should be generated for a variation (e.g., "Generate 3 questions with variation X"), you MUST generate EXACTLY that number of variation questions.
+CRITICAL: Variation questions should follow the variation requirements specified in SME notes while maintaining the base question structure and format.
+CRITICAL: The total number of questions generated should include both base question variations AND variation questions as specified in SME notes.
+CRITICAL: If SME notes say "Generate 2 questions with variation Y", generate 2 questions using variation Y in addition to any other questions requested.
+
+⚠️⚠️⚠️ VERIFICATION CHECKLIST FOR SME NOTES ⚠️⚠️⚠️
+Before finalizing each question, verify:
+- Have I read and understood ALL SME notes requirements?
+- Have I incorporated ALL requirements from SME notes into this question?
+- Does this question follow ALL constraints specified in SME notes?
+- Does this question use ALL formats/types specified in SME notes?
+- If SME notes specify answer types/ranges/formats, does this question use them?
+- If SME notes specify scenarios/contexts, does this question incorporate them?
+- Have I followed EVERY instruction in the SME notes, not just some of them?
+- If SME notes mention variations, have I generated the specified number of variation questions?
+- If SME notes specify variation requirements, does this question follow those variation requirements?
+
+CRITICAL: These are the ONLY SME notes for this request. Do NOT use any notes from previous requests or conversations.
+${'='.repeat(80)}\n` : '\nTIER 3: SME NOTES - None provided.\nCRITICAL: There are NO SME notes for this request. Do NOT use any notes from previous requests or conversations.\nProceed with Tiers 1 and 2 only. Ignore any notes that may have been mentioned in previous interactions.\n'}
+
+${solution ? `Base Solution: ${solution}\n` : ''}${imageInfo ? `${imageInfo}\n` : ''}${imageFiles.length > 0 ? `\nUPLOADED IMAGES: ${imageFiles.length} image(s) have been uploaded. Use these images as reference for the visual elements, dimensions, angles, and other details needed to generate similar questions.\n` : ''}
+${curriculum && grade ? `Curriculum: ${curriculum} | Grade: ${grade} | Difficulty: ${difficulty}` : difficulty ? `Difficulty: ${difficulty}` : ''}
+Subskills: ${subskillsText.substring(0, 200)}
+
+TIER 2: Question-Specific Requirements - ${tier2Section}
+
+${isImageBased ? `Characteristics: Questions that include or reference visual elements like graphs, diagrams, geometric figures, tables, or charts.
+
+Apply These Additional Requirements:
+
+1. Image Description Requirements (MANDATORY) For each generated question, you MUST provide:
+- Complete visual description: Detailed text description of what the image contains
+- All visual elements: Describe graphs, diagrams, tables, charts, geometric figures, equations shown in image form
+- Labels and annotations: Include all axis labels, point coordinates, measurements, annotations visible
+- Colors and styles: Mention line types (solid, dashed), colors if relevant to understanding
+- Scale and units: Specify scales, gridlines, unit measurements shown
+- CRITICAL: The "image" field in your JSON response MUST contain ONLY the text description, NOT a URL or image link
+- CRITICAL: Do NOT generate or reference actual images - provide ONLY a detailed text description in the "image" field
+
+2. Image Description Format
+Structure your descriptions clearly using this template:
+"The image shows [type of visual: graph/triangle/table/etc.].
+[Describe main elements with labels].
+[List given measurements/values].
+[Note special markings or annotations].
+[State what needs to be found, indicated by variable or question mark]."
+
+3. Logical and Realistic Feasibility
+- Accurate representations: Graphs must follow mathematical rules (linear functions are straight lines, parabolas open correctly, etc.)
+- Proportional accuracy: Visual proportions should match numerical values
+- Realistic data: If showing real-world data (temperatures, prices), use plausible values
+- Consistent scales: Axes and measurements must be mathematically consistent
+- Physical possibility: Geometric figures must obey mathematical constraints (triangle inequality, angle sum properties, Pythagorean relationships)
+
+4. Mathematical Accuracy in Visuals
+- Correct plotting: Points, lines, curves are mathematically accurate to the equations
+- Valid constructions: Geometric figures can actually exist with given measurements
+- Data consistency: Table/chart values align with what's being asked
+- Scale verification: If graph shows coordinates, they must be correctly positioned
+- Angle accuracy: Marked angles should visually approximate their values
+
+5. Completeness of Description
+Your description must include:
+- All given information: Every number, label, symbol visible in image
+- Spatial relationships: "above," "below," "parallel to," "intersects at," "perpendicular to"
+- Reference points: Origin, vertices, intercepts, maxima/minima, inflection points
+- Grid information: If present, specify grid spacing and scale
+- Legend/key: If the image has a legend, describe it fully
+
+6. Types of Image-Based Questions
+A. Geometric Diagrams - Triangles, circles, polygons, 3D shapes, composite figures
+B. Graphs and Functions - Linear equations, parabolas, piecewise functions, systems of equations, transformations
+C. Data Representations - Bar graphs, line graphs, pie charts, histograms, scatter plots, tables
+D. Specialized Diagrams - Venn diagrams, number lines, probability trees, trigonometric unit circles
+
+7. Distractor Logic for Image-Based Questions
+Each distractor MUST have logic explaining VISUAL MISINTERPRETATION:
+- "Misread angle measurement from protractor"
+- "Counted wrong number of sides/shapes"
+- "Misinterpreted graph scale or axis labels"
+- "Read wrong value from table"
+- "Confused similar-looking angles or lengths"
+- "Misread coordinate points on graph"
+
+8. Image Variation Requirements
+- Each of the ${numQuestions} questions MUST have a DIFFERENT image description
+- Change visual elements (sides, angles, graph equations, table values) while maintaining the same mathematical concept
+- Ensure all images are mathematically valid and consistent with their descriptions
+- Do NOT repeat the same image description across questions` : `Characteristics: Mathematical concepts embedded in real-life scenarios, stories, or contexts.
+
+Apply These Additional Requirements:
+
+1. Scenario Diversity (CRITICAL)
+- NO REPETITION: Never use the same context/scenario multiple times
+- Varied contexts: Draw from diverse real-life situations (shopping, travel, construction, cooking, sports, finance, school, nature, work)
+- Different characters: Use diverse names, professions, ages, and settings
+- Rotate problem types: Mix distance-time, work-rate, mixture, age, money, and measurement problems
+
+1.1 Answer Value Diversity (CRITICAL - MUST BE DIFFERENT)
+- CRITICAL: Each generated copy question MUST have a DIFFERENT correct answer value than the base question
+- If the base question's correct answer is 25%, NONE of the copy questions should have 25% as the correct answer
+- If the base question's correct answer is $50, NONE of the copy questions should have $50 as the correct answer
+- If the base question's correct answer is 12 apples, NONE of the copy questions should have 12 apples as the correct answer
+- Each copy question must have a UNIQUE correct answer value that is different from the base question and different from other copy questions
+- Change the numbers, quantities, percentages, amounts, etc. in each question to ensure different answer values
+- Example: Base question answer = 25% → Copy questions should have answers like 30%, 20%, 35%, 15%, etc. (NOT 25%)
+- Example: Base question answer = $50 → Copy questions should have answers like $60, $45, $75, $40, etc. (NOT $50)
+- CRITICAL: Verify that each generated question's correct answer is different from the base question's answer
+
+2. Logical and Realistic Feasibility
+- Real-world plausibility: Scenarios must be believable and possible
+- Reasonable speeds, prices, timeframes
+- Consistent units: Quantities must make practical sense
+- Age appropriateness: Ages must be realistic for activities described
+- Economic sensibility: Prices and monetary values should reflect reality
+- Physical constraints: Respect real-world limitations
+
+3. Phrasing Consistency (CRITICAL - SENTENCE STRUCTURE PRESERVATION)
+- Match the base question's style (formal/conversational)
+- PRESERVE SENTENCE STRUCTURE: Maintain the EXACT same grammatical patterns, sentence complexity, and word order structure as the base question
+- Keep the same sentence flow: If base question uses "A person has X and buys Y, how many...?" maintain this structure
+- Maintain parallel construction: If base uses compound sentences, use compound sentences; if simple, use simple
+- Consistent terminology: Use similar vocabulary level and mathematical language
+- Same level of detail: Match the amount of contextual information provided
+- Parallel question format: If base asks "How many...?" frame variants similarly
+- CRITICAL: The sentence structure must remain the SAME - only change the numbers, names, and context, NOT the grammatical structure
+
+4. Mathematical Accuracy in Context
+- Verify all calculations produce valid, sensible answers
+- Ensure given data leads to solvable problems
+- Check that conditions don't contradict each other
+- Confirm answers align with the scenario's logic
+
+5. Clear Problem Setup
+- Unambiguous wording: Reader should understand exactly what's being asked
+- All necessary information: Include every detail needed to solve
+- No extraneous data: Unless specifically testing data filtering skills
+- Defined relationships: Clearly state how variables relate to each other
+
+6. Completeness Check
+- All units are specified (km, hours, dollars, liters, kg, etc.)
+- Question clearly states what to find
+- Timeframes are logical (before/after relationships make sense)
+- Quantities are properly quantified (not vague like "some" or "few")
+
+7. Common Pitfalls to AVOID
+❌ Impossible scenarios (student solving 200 problems in 5 minutes)
+❌ Anachronisms (using outdated prices or technologies inappropriately)
+❌ Stereotypes (gender, cultural, or occupational stereotyping)
+❌ Overly complex contexts (story overshadowing the math)
+❌ Ambiguous pronouns (unclear referents for "he," "she," "it," "they")`}
+
+CRITICAL REQUIREMENTS FOR OPTIONS AND CORRECT ANSWERS:
+
+1. OPTIONS FORMAT:
+   - Each option MUST have a "text" field containing a COMPLETE, MEANINGFUL answer
+   - DO NOT use placeholder text like "Option A", "Option B", "Choice A", etc.
+   - Each option MUST be a real, complete answer that a student could choose
+   - Options should be in the same format as the base question's options
+
+2. CORRECT ANSWER (CRITICAL - MUST BE VERIFIED):
+   - ONE and ONLY ONE option per question MUST have "logic": "CA" (Correct Answer)
+   - CRITICAL: You MUST solve each question completely before marking the correct answer
+   - The correct answer MUST be mathematically correct - verify by solving the problem step-by-step
+   - Work backward from your answer to confirm it satisfies all conditions in the question
+   - The correct answer MUST follow all SME notes requirements
+   - Mark the correct answer clearly with "logic": "CA" - DO NOT mark incorrect answers as CA
+   - If you are unsure which answer is correct, solve the problem completely first, then mark the verified correct answer
+   
+   VERIFICATION PROCESS (MANDATORY - FOLLOW THESE STEPS):
+   Step 1: Read the question carefully and identify what is being asked
+   Step 2: Solve the problem completely step-by-step (show your work mentally)
+   Step 3: Calculate the final answer
+   Step 4: Verify your answer by plugging it back into the problem or checking it
+   Step 5: Check that your answer satisfies all conditions in the question
+   Step 6: Only then, mark the option with your verified answer as "logic": "CA"
+   Step 7: Generate distractors (incorrect options) with appropriate logic
+   
+   EXAMPLE OF CORRECT PROCESS:
+   Question: "What is 15 + 27?"
+   Step 1: Identify: Addition problem
+   Step 2: Solve: 15 + 27 = 42
+   Step 3: Verify: 42 - 15 = 27 ✓ (correct)
+   Step 4: Mark option with "42" as "logic": "CA"
+   Step 5: Generate distractors: "40" (logic: "Forgot to add ones"), "43" (logic: "Added incorrectly"), etc.
+   
+   ❌ WRONG: Marking "40" as CA because it's close to the answer
+   ❌ WRONG: Marking the first option as CA without solving
+   ❌ WRONG: Marking multiple options as CA
+   ❌ WRONG: Guessing which answer is correct
+   ✅ CORRECT: Solving completely, verifying, then marking only the verified correct answer as CA
+
+3. INCORRECT OPTIONS (DISTRACTORS):
+   - Each incorrect option MUST have a "logic" field explaining the error
+   - Logic must be SHORT (3-6 words) describing the mistake
+   - ${isImageBased ? 'For image-based: Logic should describe VISUAL MISINTERPRETATION' : 'For word problems: Logic should describe ACTUAL ERRORS students would make'}
+   - Examples: "Added instead of multiplied", "Forgot to carry over", "Wrong denominator", "Calculation error"${isImageBased ? ', "Misread angle measurement", "Counted wrong number of sides"' : ''}
+
+4. OPTIONS COUNT:
+   - Each question MUST have EXACTLY ${numOptions} options
+   - All ${numOptions} options must be complete and valid answers
+
+5. STEP-BY-STEP SOLUTIONS (CRITICAL - MUST BE COMPLETE AND DETAILED):
+   - Each question MUST include a COMPLETE, DETAILED step-by-step solution in the "solution" field
+   - CRITICAL: The solution MUST be complete in all sense - show ALL steps, calculations, and reasoning
+   - CRITICAL: Format each step on a NEW LINE using "Step 1:", "Step 2:", "Step 3:", etc. or numbered format
+   - Each step MUST be clearly separated and on its own line for readability
+   - Include ALL intermediate calculations and explanations
+   - Show the complete work from start to finish - do NOT skip steps
+   - Verify the final answer matches the correct option
+   ${isImageBased ? '- Reference specific parts of the image description (e.g., "Step 1: Using the angle shown in the triangle...", "Step 2: From the graph, we can see...")' : '- Show the logical progression from the problem statement to the final answer with ALL steps'}
+   - Make it educational and easy to follow - a student should be able to understand each step
+   - Format: Use line breaks between steps (each step on a new line)
+   ${solution ? '- Base the solution on the provided base solution, adapting steps to match each question\'s numbers/context' : ''}
+   - Example format:
+     "Step 1: [First step explanation and calculation]\nStep 2: [Second step explanation and calculation]\nStep 3: [Final step and answer]"
+
+QUALITY CHECKLIST (Self-Verify Before Finalizing):
+✅ Format matches base question exactly
+✅ Correct answer is mathematically verified
+✅ Options don't follow a predictable pattern
+✅ CRITICAL: Number of options is EXACTLY ${numOptions} - count them to verify!
+✅ ${isImageBased ? 'Complete visual description provided for each question' : 'Scenario is different from base and realistic'}
+✅ ${isImageBased ? 'Description allows problem to be solved' : 'Phrasing style matches base question'}
+✅ ${isImageBased ? '' : 'CRITICAL: Each copy question has a DIFFERENT correct answer value than the base question - verify this!'}
+✅ CRITICAL: ALL SME notes (if provided) have been followed PRECISELY - verify each requirement individually
+✅ CRITICAL: Solution is COMPLETE with ALL steps shown - verify no steps are skipped
+✅ CRITICAL: Solution is formatted with each step on a new line for readability
+✅ No mathematical errors or logical contradictions
+
+⚠️⚠️⚠️ FINAL REMINDER - ANSWER VERIFICATION:
+Before generating your response, ensure you have:
+1. Solved each question completely step-by-step
+2. Verified your answer is mathematically correct
+3. Checked that your answer satisfies all conditions
+4. Marked ONLY the verified correct answer as "logic": "CA"
+5. Generated appropriate distractors with error logic
+${isImageBased ? '' : '6. CRITICAL: Verified that each copy question has a DIFFERENT correct answer value than the base question (e.g., if base answer is 25%, copy questions should have 30%, 20%, 35%, etc., NOT 25%)'}
+
+DO NOT:
+- Mark an answer as CA without solving the problem
+- Mark multiple options as CA
+- Guess which answer is correct
+- Mark the first option as CA just because it's first
+${isImageBased ? '' : '- Use the same answer value as the base question for any copy question'}
+
+CRITICAL JSON FORMAT REQUIREMENTS:
+- Your FIRST character MUST be [ (opening square bracket)
+- Your LAST character MUST be ] (closing square bracket)
+- Return ONLY a valid JSON array starting with [ and ending with ]
+- DO NOT start with { (curly brace) - that means a single object, which is WRONG
+- DO NOT return a single object - you MUST return an array
+- NO markdown code blocks (no \`\`\`json or \`\`\`)
+- NO explanations or text before or after the JSON
+- NO comments or notes
+- Start response immediately with [
+- End response with ]
+- Ensure all strings are properly quoted with double quotes
+- Ensure all brackets and braces are properly matched
+- Do NOT include any text outside the JSON array
+
+⚠️⚠️⚠️ CRITICAL: You MUST return EXACTLY ${numQuestions} question objects in a JSON array. DO NOT return only one question.
+
+Each question object MUST have this structure:
+${isImageBased ? `{
+  "image": "[Detailed image description with sides, angles, equations, table values, etc.]",
+  "question": "[Question text referencing the image]",
+  "solution": "[Step-by-step solution with reference to image elements]",
+  "options": [
+    {"text": "[Correct answer value]", "logic": "CA"},
+    {"text": "[Distractor 1 value]", "logic": "[Visual misinterpretation that leads to this]"},
+    ...
+  ]
+}` : `{
+  "question": "[Question text]",
+  "options": [
+    {"text": "[Correct answer]", "logic": "CA"},
+    {"text": "[Distractor 1]", "logic": "[Error description]"},
+    ...
+  ],
+  "image": "",
+  "solution": "[Step-by-step solution]"
+}`}
+
+CRITICAL: Each "options" array MUST contain EXACTLY ${numOptions} option objects:
+- ONE option with "logic": "CA" (the correct answer)
+- ${numOptions - 1} distractors, each with logic explaining the error${isImageBased ? ' or visual misinterpretation' : ''}
+
+Example of correct options format:
+"options": [
+  {"text": "${isImageBased ? '45°' : '5 + 7'}", "logic": "CA"},
+  {"text": "${isImageBased ? '30°' : '5 - 7'}", "logic": "${isImageBased ? 'Misread angle measurement from protractor' : 'Used subtraction instead'}"},
+  {"text": "${isImageBased ? '60°' : '5 × 7'}", "logic": "${isImageBased ? 'Confused complementary angle' : 'Used multiplication instead'}"}
+]
+
+DO NOT return placeholder text like "Option A", "Option B", etc. Each option MUST be a complete, valid answer choice.
+
+Your response should look like this (example for ${numQuestions} questions):
+[${isImageBased ? `{
+  "image": "A right triangle with sides labeled: base = 3 cm, height = 4 cm, hypotenuse = 5 cm.",
+  "question": "What is the area of the triangle shown?",
+  "solution": "Step 1: Identify the base and height from the image. Base = 3 cm, Height = 4 cm. Step 2: Apply area formula: Area = (1/2) × base × height = (1/2) × 3 × 4 = 6 cm²",
+  "options": [
+    {"text": "6 cm²", "logic": "CA"},
+    {"text": "12 cm²", "logic": "Forgot to multiply by 1/2"},
+    {"text": "7 cm²", "logic": "Added base and height instead of multiplying"},
+    {"text": "5 cm²", "logic": "Used hypotenuse length instead of height"}
+  ]
+}` : `{
+  "question": "Sarah had 5 apples. She picked 7 more apples. Write an expression to represent the total number of apples Sarah has now.",
+  "options": [
+    {"text": "5 + 7", "logic": "CA"},
+    {"text": "5 - 7", "logic": "Used subtraction instead"},
+    {"text": "5 × 7", "logic": "Used multiplication instead"},
+    {"text": "7 - 5", "logic": "Reversed the order"}
+  ],
+  "image": "",
+  "solution": "Step-by-step solution..."
+}`}, ...]
+
+CRITICAL FINAL REMINDER:
+- You MUST return EXACTLY ${numQuestions} questions in the JSON array
+- CRITICAL: Each question MUST have EXACTLY ${numOptions} options - NO MORE, NO LESS
+- Count your questions: The array must have exactly ${numQuestions} elements, no more, no less
+- Count options in EACH question: Every question must have exactly ${numOptions} options
+- Verify before submitting: Check that your JSON array contains exactly ${numQuestions} question objects
+- Verify before submitting: Check that EACH question object has exactly ${numOptions} options in its options array
+- The array must start with [ and end with ]
+- DO NOT return fewer than ${numQuestions} questions
+- DO NOT return more than ${numQuestions} questions
+- DO NOT add extra options or remove options - the count must match exactly
+- ${notes && notes.length > 0 ? 'CRITICAL: Verify that ALL SME notes requirements have been followed in EVERY question' : ''}`
+  }
+  
+  try {
+    const client = getOpenAIClient()
+    
+    // Calculate tokens needed
+    const tokensPerQuestion = Math.max(500, 400 * numOptions)
+    let tokensNeeded = Math.max(1500, tokensPerQuestion * numQuestions)
+    tokensNeeded = Math.min(8000, tokensNeeded)
+    if (numQuestions > 1) {
+      tokensNeeded = Math.floor(tokensNeeded * 1.2)
+    }
+    
+    // Parse JSON from response
+    let cleanedContent = content.trim()
+    cleanedContent = cleanedContent.replace(/```json\s*/g, '')
+    cleanedContent = cleanedContent.replace(/```\s*/g, '')
+    cleanedContent = cleanedContent.trim()
+    
+    // Extract JSON array
+    const firstBracket = cleanedContent.indexOf('[')
+    const lastBracket = cleanedContent.lastIndexOf(']')
+    
+    if (firstBracket === -1 || lastBracket === -1 || lastBracket <= firstBracket) {
+      console.error('Failed to find JSON array. Content preview:', cleanedContent.substring(0, 500))
+      throw new Error('Failed to find JSON array in response. The AI may not have returned questions in the expected format.')
+    }
+    
+    const jsonContent = cleanedContent.substring(firstBracket, lastBracket + 1)
+    let parsed
+    try {
+      parsed = JSON.parse(jsonContent)
+    } catch (parseError: any) {
+      console.error('JSON parse error:', parseError.message)
+      console.error('JSON content preview:', jsonContent.substring(0, 500))
+      throw new Error(`Failed to parse JSON response: ${parseError.message}. The AI response may be malformed.`)
+    }
+    
+    if (!Array.isArray(parsed)) {
+      console.error('Parsed JSON is not an array. Type:', typeof parsed, 'Value:', parsed)
+      throw new Error('Parsed JSON is not an array. The AI may have returned a single object instead of an array.')
+    }
+    
+    if (parsed.length === 0) {
+      console.error('Parsed array is empty')
+      throw new Error('The AI returned an empty array. No questions were generated.')
+    }
+    
+    // Validate and fix questions
+    const validatedQuestions = []
+    // First, collect all valid questions from the parsed response
+    for (let idx = 0; idx < parsed.length; idx++) {
+      const question = parsed[idx]
+      
+      if (!question.question) {
+        console.warn(`Question ${idx + 1}: Missing question text`)
+        continue
+      }
+      
+      if (!question.options || !Array.isArray(question.options)) {
+        console.warn(`Question ${idx + 1}: Missing or invalid options array. Received:`, question.options)
+        continue
+      }
+      
+      // Log original options for debugging
+      if (question.options.length === 0 || question.options.some((opt: any) => !opt || !opt.text || opt.text.trim() === '')) {
+        console.warn(`Question ${idx + 1}: Options are empty or invalid. Original options:`, JSON.stringify(question.options))
+      }
+      
+      // Ensure correct number of options
+      let options = question.options
+      if (options.length !== numOptions) {
+        if (options.length < numOptions) {
+          console.warn(`Question ${idx + 1}: Only ${options.length} options provided, expected ${numOptions}`)
+        } else {
+          console.warn(`Question ${idx + 1}: ${options.length} options provided, expected ${numOptions}, trimming`)
+          options = options.slice(0, numOptions)
+        }
+      }
+      
+      // Validate options - filter out empty or invalid ones
+      const validOptions = []
+      let hasCorrectAnswer = false
+      
+      for (let optIdx = 0; optIdx < options.length; optIdx++) {
+        const option = options[optIdx]
+        // Skip options without text or with empty/placeholder text
+        if (!option || !option.text || typeof option.text !== 'string') {
+          console.warn(`Question ${idx + 1}: Skipping invalid option:`, option)
+          continue
+        }
+        
+        const optionText = option.text.trim()
+        
+        // Skip placeholder text like "Option A", "Option B", etc., but allow short valid answers
+        if (optionText.match(/^Option\s+[A-Z]$/i) || optionText === '') {
+          console.warn(`Question ${idx + 1}: Skipping placeholder or empty option: "${optionText}"`)
+          continue
+        }
+        
+        // Allow very short answers (like single digits, fractions, etc.) but log them
+        if (optionText.length < 1) {
+          console.warn(`Question ${idx + 1}: Skipping empty option`)
+          continue
+        }
+        
+        // Determine logic - check for correct answer markers
+        let optionLogic = option.logic || 'Plausible distractor'
+        const logicUpper = String(optionLogic).toUpperCase().trim()
+        
+        // Check if this is marked as correct answer
+        // Only accept explicit CA markers - don't auto-assume first option is correct
+        const isCorrectAnswer = logicUpper === 'CA' || 
+                                logicUpper === 'CORRECT' ||
+                                logicUpper === 'CORRECT ANSWER' ||
+                                (logicUpper.includes('CORRECT') && !logicUpper.includes('INCORRECT')) ||
+                                (logicUpper.includes('RIGHT') && !logicUpper.includes('WRONG'))
+        
+        if (isCorrectAnswer && !hasCorrectAnswer) {
+          optionLogic = 'CA'
+            hasCorrectAnswer = true
+        } else if (isCorrectAnswer && hasCorrectAnswer) {
+          // Multiple correct answers - mark this as distractor
+          optionLogic = 'Plausible distractor'
+        } else if (!option.logic) {
+          // No logic provided - default to distractor
+          optionLogic = 'Plausible distractor'
+          } else {
+          // Keep original logic
+          optionLogic = option.logic
+        }
+        
+        validOptions.push({
+          text: optionText,
+          logic: optionLogic
+        })
+      }
+      
+      // If no valid options were found, log error and skip this question
+      if (validOptions.length === 0) {
+        console.error(`Question ${idx + 1}: No valid options found after validation. Original options:`, JSON.stringify(question.options))
+        continue
+      }
+      
+      // If no correct answer found, log error and mark first option as CA (with warning)
+      if (!hasCorrectAnswer && validOptions.length > 0) {
+        console.error(`Question ${idx + 1}: WARNING - No correct answer (CA) found in options. Marking first option as CA. This may be incorrect! Original options:`, JSON.stringify(question.options))
+        console.warn(`Question ${idx + 1}: First option "${validOptions[0].text}" is being marked as CA, but this was not verified as correct by the AI.`)
+        validOptions[0].logic = 'CA'
+      }
+      
+      // Validate that the solution mentions the correct answer (if solution exists)
+      if (question.solution && validOptions.length > 0) {
+        const correctOption = validOptions.find(opt => opt.logic === 'CA')
+        if (correctOption) {
+          const solutionText = question.solution.toLowerCase()
+          const correctAnswerText = correctOption.text.toLowerCase().trim()
+          // Check if solution contains the correct answer (allowing for formatting differences)
+          const answerInSolution = solutionText.includes(correctAnswerText) || 
+                                   solutionText.includes(correctAnswerText.replace(/\s+/g, '')) ||
+                                   // Check for common variations (fractions, decimals, etc.)
+                                   (correctAnswerText.match(/\d+/) && solutionText.match(new RegExp(correctAnswerText.match(/\d+/)?.[0] || '')))
+          
+          if (!answerInSolution && correctAnswerText.length > 0) {
+            console.warn(`Question ${idx + 1}: WARNING - Solution may not match the marked correct answer "${correctOption.text}". Please verify manually.`)
+            console.warn(`Question ${idx + 1}: Solution preview: ${question.solution.substring(0, 100)}...`)
+          }
+        }
+      }
+      
+      // If we don't have enough valid options, pad with placeholders as last resort
+      // This should rarely happen if GPT generates properly, but we need to ensure we have the right number
+      if (validOptions.length < numOptions) {
+        console.error(`Question ${idx + 1}: Only ${validOptions.length} valid options found, expected ${numOptions}. Padding with placeholders.`)
+        // Only add placeholders if we have at least one valid option
+        // This indicates GPT partially generated options but not enough
+      while (validOptions.length < numOptions) {
+        validOptions.push({
+          text: `Option ${String.fromCharCode(65 + validOptions.length)}`,
+          logic: 'Plausible distractor'
+        })
+        }
+      }
+      
+      // Trim to exact number needed
+      const finalOptions = validOptions.slice(0, numOptions)
+      
+      // Handle image field: For image-based questions, use description directly (don't generate images)
+      // For other question types, generate images if needed
+      let imageField = question.image || ''
+      if (questionType === 'image_based') {
+        // For image-based questions, use the description directly (already in question.image)
+        // No image generation needed - just use the text description
+        imageField = question.image || ''
+      } else if (shouldGenerateImages && imageField) {
+        // For non-image-based questions, generate images if needed
+        try {
+          const generatedImage = await generateImageForQuestion(
+            question.question,
+            imageField
+          )
+          if (generatedImage) {
+            imageField = generatedImage
+          }
+        } catch (error) {
+          console.error('Error generating image:', error)
+        }
+      }
+      
+      validatedQuestions.push({
+        question: String(question.question).trim(),
+        options: finalOptions,
+        image: imageField,
+        solution: question.solution ? String(question.solution).trim() : ''
+      })
+    }
+    
+    if (validatedQuestions.length === 0) {
+      // Log the raw response for debugging
+      console.error('No valid questions were generated. Parsed response:', JSON.stringify(parsed, null, 2))
+      console.error('Original content length:', content?.length || 0)
+      throw new Error('No valid questions were generated. Please check the base question format and try again. If the issue persists, the generated questions may not match the required format.')
+    }
+    
+    // Ensure we have exactly the requested number of questions
+    if (validatedQuestions.length < numQuestions) {
+      console.warn(`Only ${validatedQuestions.length} valid questions generated, but ${numQuestions} requested. Parsed response had ${parsed.length} questions.`)
+      throw new Error(`Only ${validatedQuestions.length} valid question(s) were generated, but ${numQuestions} were requested. Please try again or check the base question format.`)
+    }
+    
+    // If we have more than requested, trim to exact number
+    if (validatedQuestions.length > numQuestions) {
+      console.warn(`Generated ${validatedQuestions.length} questions, but only ${numQuestions} requested. Trimming to requested number.`)
+    return validatedQuestions.slice(0, numQuestions)
+    }
+    
+    // Return exactly the requested number
+    return validatedQuestions
+  } catch (error: any) {
+    if (error instanceof SyntaxError) {
+      throw new Error(`Failed to parse GPT response as JSON: ${error.message}`)
+    }
+    throw error
   }
 }
 

@@ -153,7 +153,7 @@ function GeneratePageContent() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+          body: JSON.stringify({
           baseQuestion,
           numCopyQuestions,
           numOptions, // Explicitly send the number of options
@@ -217,32 +217,64 @@ function GeneratePageContent() {
   }
   
   const formatQuestionForCopy = (question: Question): string => {
-    // Format: Question text with spacing, then each option on its own line (all in one cell)
-    // Format: Question text followed by spaces so options wrap to next line
-    // Each option also has spacing after it so the next option wraps to a new line
-    // This ensures each option appears on its own line when pasted into spreadsheets with word wrap
-    let text = question.question
+    // Check if this is an image-based question
+    const isImageBased = questionType === 'image-based' || (question.image && question.image.trim().length > 0)
     
-    // Add multiple spaces to ensure first option wraps to next line
-    text += ' '.repeat(100) // Add 100 spaces to push first option to next line
-    
-    // Add options with logic, each with spacing after to push next option to new line
-    question.options.forEach((opt, idx) => {
-      let optionText = `${String.fromCharCode(65 + idx)}) ${opt.text}`
-      if (opt.logic === 'CA') {
-        optionText += ' (Correct Answer)'
-      } else if (opt.logic) {
-        optionText += ` (Logic: ${opt.logic})`
-      }
-      text += optionText
+    if (isImageBased && question.image) {
+      // Format for image-based questions:
+      // Question text
+      // Image description
+      // A) Option
+      // B) Option
+      // C) Option
+      let text = question.question
+      text += '\n\n' // Two newlines after question
+      text += question.image.trim() // Image description
+      text += '\n\n' // Two newlines after image description
       
-      // Add spacing after each option (except the last one) to push next option to new line
-      if (idx < question.options.length - 1) {
-        text += ' '.repeat(100) // Add 100 spaces after each option
-      }
-    })
-    
-    return text
+      // Add options, each on its own line with blank lines between (with logic annotations)
+      question.options.forEach((opt, idx) => {
+        let optionText = `${String.fromCharCode(65 + idx)}) ${opt.text}`
+        if (opt.logic === 'CA') {
+          optionText += ' (Correct Answer)'
+        } else if (opt.logic) {
+          optionText += ` (Logic: ${opt.logic})`
+        }
+        text += optionText
+        if (idx < question.options.length - 1) {
+          text += '\n\n' // Blank line after each option
+        }
+      })
+      
+      return text
+    } else {
+      // Format for non-image-based questions: Question text with spacing, then each option on its own line (all in one cell)
+      // Format: Question text followed by spaces so options wrap to next line
+      // Each option also has spacing after it so the next option wraps to a new line
+      // This ensures each option appears on its own line when pasted into spreadsheets with word wrap
+      let text = question.question
+      
+      // Add multiple spaces to ensure first option wraps to next line
+      text += ' '.repeat(100) // Add 100 spaces to push first option to next line
+      
+      // Add options with logic, each with spacing after to push next option to new line
+      question.options.forEach((opt, idx) => {
+        let optionText = `${String.fromCharCode(65 + idx)}) ${opt.text}`
+        if (opt.logic === 'CA') {
+          optionText += ' (Correct Answer)'
+        } else if (opt.logic) {
+          optionText += ` (Logic: ${opt.logic})`
+        }
+        text += optionText
+        
+        // Add spacing after each option (except the last one) to push next option to new line
+        if (idx < question.options.length - 1) {
+          text += ' '.repeat(100) // Add 100 spaces after each option
+        }
+      })
+      
+      return text
+    }
   }
 
   const verifyQuestion = async (index: number) => {
@@ -965,16 +997,52 @@ function GeneratePageContent() {
                     </div>
                   </div>
                   <div className="question-text">{question.question}</div>
-                  {question.image && (
-                    <img
-                      src={question.image}
-                      alt="Question Image"
-                      className="question-image"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none'
-                      }}
-                    />
-                  )}
+                  {question.image && (() => {
+                    // Check if this is an image-based question (image field contains description text, not URL)
+                    const isImageBasedQuestion = questionType === 'image-based' || 
+                      (question.image && !question.image.match(/^https?:\/\//i) && question.image.trim().length > 0)
+                    
+                    if (isImageBasedQuestion) {
+                      // Display image description as text for image-based questions
+                      // Preserve exact format and structure from the image description field
+                      return (
+                        <div 
+                          className="image-description"
+                          style={{
+                            marginTop: '12px',
+                            marginBottom: '12px',
+                            padding: '12px',
+                            backgroundColor: '#f0f7ff',
+                            borderRadius: '4px',
+                            border: '1px solid #b3d9ff',
+                            whiteSpace: 'pre-line',
+                            lineHeight: '1.8',
+                            color: '#333',
+                            fontFamily: 'inherit'
+                          }}
+                        >
+                          <strong style={{ display: 'block', marginBottom: '8px', color: '#0056b3' }}>
+                            Image Description:
+                          </strong>
+                          <div style={{ whiteSpace: 'pre-line', lineHeight: '1.8' }}>
+                            {question.image}
+                          </div>
+                        </div>
+                      )
+                    } else {
+                      // Display as image for non-image-based questions (if it's a URL)
+                      return (
+                        <img
+                          src={question.image}
+                          alt="Question Image"
+                          className="question-image"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none'
+                          }}
+                        />
+                      )
+                    }
+                  })()}
                   {question.options && question.options.length > 0 && (
                     <>
                       <h3 className="options-heading">Options</h3>
