@@ -935,6 +935,25 @@ CRITICAL FINAL REMINDER:
       tokensNeeded = Math.floor(tokensNeeded * 1.2)
     }
     
+    const response = await client.chat.completions.create({
+      model: model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      max_tokens: tokensNeeded,
+      temperature: 0.7,
+    })
+    
+    if (!response.choices || response.choices.length === 0) {
+      throw new Error('GPT returned empty response')
+    }
+    
+    const content = response.choices[0].message.content
+    if (!content || content.trim().length === 0) {
+      throw new Error('GPT returned empty content')
+    }
+    
     // Parse JSON from response
     let cleanedContent = content.trim()
     cleanedContent = cleanedContent.replace(/```json\s*/g, '')
