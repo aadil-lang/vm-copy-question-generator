@@ -1,149 +1,116 @@
-# Adaptive Mathematics Question Generator
+# VM Copy Question Generator - Next.js
 
-A web-based application for generating curriculum-aligned mathematics questions for K-12 US state standards. This tool helps educators create high-quality, adaptive questions that assess student understanding across varying difficulty levels.
+A Next.js web application that uses OpenAI GPT models to generate copy questions based on a base question. The application is designed for educators to create multiple variations of mathematical questions aligned with US curricula standards.
 
 ## Features
 
-- **Multi-State Support**: Generate questions aligned with Common Core, California, Texas, New York, Florida, Virginia, and other state standards
-- **Grade Levels K-12**: Comprehensive coverage from Kindergarten through 12th grade
-- **Adaptive Difficulty**: Three difficulty levels (Easy, Medium, Hard) with appropriate cognitive demands
-- **Sub-Skill Focus**: Target specific mathematical sub-skills within domains
-- **Rich Question Format**: Multiple choice, short answer, numeric, and word problems
-- **Complete Metadata**: Each question includes standard codes, explanations, cognitive levels, and more
+- **Base Question Input**: Enter a base question that serves as the template
+- **Smart Question Generation**: 
+  - Mathematical questions: Same phrasing with different numbers
+  - Word problems: Different real-life context while maintaining mathematical structure
+  - Image-based questions: Generate questions with visual elements
+- **Curriculum Alignment**: Questions are aligned with US curricula standards and grade levels
+- **Customizable Options**: 
+  - Number of options (auto-detected or manual)
+  - Number of copy questions to generate
+  - Difficulty level (Easy, Medium, Hard)
+- **Image Support**: Upload images or provide image URLs
+- **Notes Field**: Add context-specific notes for question generation
+- **Copy Functionality**: Copy individual questions or all questions at once
 
-## Getting Started
+## Setup Instructions
 
 ### Prerequisites
 
-- Node.js 18+ and npm/yarn/pnpm
-- OpenAI API key (for question generation)
+- Node.js 18+ and npm
+- OpenAI API key
 
 ### Installation
 
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd base-question-generator
+cd vm-copy-question-generator
 ```
 
 2. Install dependencies:
 ```bash
 npm install
-# or
-yarn install
-# or
-pnpm install
 ```
 
-3. Set up environment variables:
-Create a `.env.local` file in the root directory:
-```bash
+3. Create a `.env.local` file in the root directory and add your OpenAI API key:
+```
 OPENAI_API_KEY=your_openai_api_key_here
 ```
-
-Get your API key from [OpenAI Platform](https://platform.openai.com/api-keys)
-
-**Note:** If you don't set the API key, the application will return mock data for testing purposes.
 
 4. Run the development server:
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
 ```
 
-5. Open [http://localhost:3001](http://localhost:3001) in your browser.
-
-**Note:** This project runs on port 3001 to avoid conflicts with other projects running on port 3000.
-
-## Usage
-
-1. **Select State Standards**: Choose from Common Core, California, Texas, New York, Florida, or Virginia standards
-2. **Choose Grade Level**: Select from Kindergarten through Grade 12
-3. **Pick Domain**: Select a mathematical domain (e.g., Operations, Fractions, Algebra)
-4. **Select Sub-Skill**: Choose the specific sub-skill you want to assess
-5. **Set Difficulty**: Choose Easy, Medium, or Hard difficulty level
-6. **Specify Quantity**: Enter the number of questions to generate (1-10)
-7. **Generate**: Click "Generate Questions" to create your questions
-
-## Question Format
-
-Each generated question includes:
-- Unique question ID
-- State and grade level
-- Domain and sub-skill
-- Standard code reference
-- Difficulty level
-- Question text
-- Question type (multiple choice, short answer, etc.)
-- Correct answer
-- Options (for multiple choice)
-- Step-by-step explanation
-- Estimated completion time
-- Cognitive level (Bloom's taxonomy)
+5. Open your browser and navigate to:
+```
+http://localhost:3000
+```
 
 ## Project Structure
 
 ```
-base-question-generator/
+vm-copy-question-generator/
 ├── app/
 │   ├── api/
-│   │   └── generate/
-│   │       └── route.ts      # API endpoint for question generation
-│   ├── page.tsx               # Main application page
-│   ├── layout.tsx             # Root layout
-│   └── globals.css            # Global styles
-├── components/
-│   └── QuestionDisplay.tsx    # Component for displaying questions
+│   │   ├── generate/
+│   │   │   └── route.ts          # API route for question generation
+│   │   └── verify/
+│   │       └── route.ts          # API route for question verification
+│   ├── generate/
+│   │   └── page.tsx              # Question generator page
+│   ├── layout.tsx                # Root layout
+│   ├── page.tsx                  # Home page
+│   └── globals.css               # Global styles
 ├── lib/
-│   └── subskills.ts           # Sub-skill data and helper functions
-├── types/
-│   └── question.ts            # TypeScript type definitions
-└── package.json
+│   ├── openai.ts                 # OpenAI client utilities
+│   ├── curriculum.ts             # Curriculum data utilities
+│   ├── question-utils.ts         # Question generation utilities
+│   └── subskills.ts              # Subskills data
+├── public/
+│   └── static/
+│       └── images/               # Static images
+├── package.json
+├── tsconfig.json
+└── next.config.js
 ```
-
-## Technology Stack
-
-- **Next.js 16**: React framework with App Router
-- **TypeScript**: Type-safe development
-- **Tailwind CSS**: Utility-first styling
-- **OpenAI API**: LLM-powered question generation
-
-## Customization
-
-### Adding New Sub-Skills
-
-Edit `lib/subskills.ts` to add new domains and sub-skills for specific grade ranges.
-
-### Modifying Question Generation
-
-The system prompt and generation logic can be customized in `app/api/generate/route.ts`.
-
-### Styling
-
-The application uses Tailwind CSS. Modify `app/globals.css` or component styles as needed.
 
 ## Deployment
 
-### Deploy on Vercel
-
-The easiest way to deploy is using [Vercel Platform](https://vercel.com/new):
+### Vercel (Recommended)
 
 1. Push your code to GitHub
-2. Import the project in Vercel
-3. Add your `OPENAI_API_KEY` as an environment variable
-4. Deploy
+2. Go to [Vercel](https://vercel.com) and sign up/login
+3. Click "New Project" and import your repository
+4. Add environment variable: `OPENAI_API_KEY`
+5. Deploy!
 
-### Environment Variables
+### Other Platforms
 
-Make sure to set `OPENAI_API_KEY` in your deployment environment.
+- **Netlify**: Similar to Vercel, supports Next.js out of the box
+- **Railway**: Supports Next.js with automatic deployments
+- **Render**: Can deploy Next.js applications
+
+## Environment Variables
+
+- `OPENAI_API_KEY`: Your OpenAI API key (required)
+
+## Notes
+
+- The application uses OpenAI GPT models (gpt-4o, gpt-5, o3, o4-mini) for question generation
+- Ensure you have sufficient OpenAI API credits
+- Generated questions include option logic (CA for correct answer, Plausible distractors with explanations)
+- Supports three question types: Mathematical, Word Problems, and Image-based questions
+- Includes verification feature to check question correctness
+- Curriculum data supports Common Core, TEKS, VA SOL, FL BEST, and CA CCSS
 
 ## License
 
-[Add your license here]
+This project is for educational purposes.
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
