@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Adaptive Mathematics Question Generator",
-  description: "Generate curriculum-aligned mathematics questions for K-12 US state standards",
+  title: "VM Copy Question Generator",
+  description: "Generate copy questions based on a base question using OpenAI GPT models. Create multiple variations of mathematical questions aligned with US curricula standards.",
 };
 
 export default function RootLayout({
