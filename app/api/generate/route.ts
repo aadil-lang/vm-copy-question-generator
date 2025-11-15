@@ -162,10 +162,6 @@ Before providing your final answer, you must:
 - If SME notes specify certain scenarios or contexts, you MUST incorporate them
 - DO NOT ignore or skip any part of the SME notes
 - SME notes are MANDATORY - treat them as non-negotiable requirements
-- CRITICAL: If SME notes mention a VARIATION of the question, you MUST generate that variation IN ADDITION to the base question
-- CRITICAL: If SME notes specify how many questions should be generated for a variation, you MUST generate EXACTLY that number of variation questions
-- CRITICAL: Variation questions should follow the variation requirements specified in SME notes while maintaining the base question structure
-- Example: If SME notes say "Generate 3 questions with variation X", generate 3 questions using variation X in addition to any base question variations
 
 1.8 Anti-Hallucination Requirements (CRITICAL - NO FABRICATION)
 - CRITICAL: You MUST base ALL content ONLY on the provided base question, SME notes, and explicit instructions
@@ -234,13 +230,6 @@ CRITICAL: Read these notes carefully and ensure ALL requirements are met in EVER
 SME NOTES CONTENT:
 ${notes}
 
-⚠️⚠️⚠️ VARIATION HANDLING (CRITICAL) ⚠️⚠️⚠️
-CRITICAL: If the SME notes mention a VARIATION of the question, you MUST generate that variation IN ADDITION to the base question.
-CRITICAL: If SME notes specify how many questions should be generated for a variation (e.g., "Generate 3 questions with variation X"), you MUST generate EXACTLY that number of variation questions.
-CRITICAL: Variation questions should follow the variation requirements specified in SME notes while maintaining the base question structure and format.
-CRITICAL: The total number of questions generated should include both base question variations AND variation questions as specified in SME notes.
-CRITICAL: If SME notes say "Generate 2 questions with variation Y", generate 2 questions using variation Y in addition to any other questions requested.
-
 ⚠️⚠️⚠️ VERIFICATION CHECKLIST FOR SME NOTES ⚠️⚠️⚠️
 Before finalizing each question, verify:
 - Have I read and understood ALL SME notes requirements?
@@ -250,172 +239,6 @@ Before finalizing each question, verify:
 - If SME notes specify answer types/ranges/formats, does this question use them?
 - If SME notes specify scenarios/contexts, does this question incorporate them?
 - Have I followed EVERY instruction in the SME notes, not just some of them?
-- If SME notes mention variations, have I generated the specified number of variation questions?
-- If SME notes specify variation requirements, does this question follow those variation requirements?
-
-CRITICAL: These are the ONLY SME notes for this request. Do NOT use any notes from previous requests or conversations.
-${'='.repeat(80)}\n` : '\nTIER 3: SME NOTES - None provided.\nCRITICAL: There are NO SME notes for this request. Do NOT use any notes from previous requests or conversations.\nProceed with Tiers 1 and 2 only. Ignore any notes that may have been mentioned in previous interactions.\n'}
-
-${solution ? `Base Solution: ${solution}\n` : ''}${imageInfo ? `${imageInfo}\n` : ''}
-
-TIER 2: Question-Specific Requirements - 2A: Mathematical Questions
-
-Characteristics: Equations, expressions, calculations without real-world scenarios. No images/graphs.
-
-Apply These Additional Requirements:
-
-Mathematical Accuracy
-- Verify all calculations are correct before finalizing
-- Ensure solutions exist and are mathematically valid
-- Check that all given conditions are consistent (no contradictions)
-
-Problem Structure
-- Clearly define what is given and what needs to be found
-- Use proper mathematical notation and symbols
-- Ensure the question is unambiguous
-- Maintain logical flow from given information to the question
-
-Answer Verification (CRITICAL)
-- You MUST solve each question completely before generating options
-- Work backward from the answer to verify it satisfies all conditions
-- Check for extraneous solutions (e.g., square root problems, rational equations)
-- Ensure the answer is in the requested form (simplified, exact, decimal, fraction, etc.)
-- Verify units/dimensions if applicable
-- CRITICAL: Only mark an option as "CA" if you have verified it is mathematically correct by solving the problem
-- Double-check your calculations - incorrect answers marked as CA will cause errors
-
-CRITICAL REQUIREMENTS FOR OPTIONS AND CORRECT ANSWERS:
-
-1. OPTIONS FORMAT:
-   - Each option MUST have a "text" field containing a COMPLETE, MEANINGFUL answer (e.g., "5/12", "0.42", "3/4", "2.5")
-   - DO NOT use placeholder text like "Option A", "Option B", "Choice A", etc.
-   - Each option MUST be a real, complete answer that a student could choose
-   - Options should be in the same format as the base question's options (fractions, decimals, whole numbers, etc.)
-
-2. CORRECT ANSWER (CRITICAL - MUST BE VERIFIED):
-   - ONE and ONLY ONE option per question MUST have "logic": "CA" (Correct Answer)
-   - CRITICAL: You MUST solve each question completely before marking the correct answer
-   - The correct answer MUST be mathematically correct - verify by solving the problem step-by-step
-   - Work backward from your answer to confirm it satisfies all conditions in the question
-   - The correct answer MUST follow all SME notes requirements
-   - Mark the correct answer clearly with "logic": "CA" - DO NOT mark incorrect answers as CA
-   - If you are unsure which answer is correct, solve the problem completely first, then mark the verified correct answer
-   
-   VERIFICATION PROCESS (MANDATORY - FOLLOW THESE STEPS):
-   Step 1: Read the question carefully and identify what is being asked
-   Step 2: Solve the problem completely step-by-step (show your work mentally)
-   Step 3: Calculate the final answer
-   Step 4: Verify your answer by plugging it back into the problem or checking it
-   Step 5: Check that your answer satisfies all conditions in the question
-   Step 6: Only then, mark the option with your verified answer as "logic": "CA"
-   Step 7: Generate distractors (incorrect options) with appropriate logic
-   
-   EXAMPLE OF CORRECT PROCESS:
-   Question: "What is 15 + 27?"
-   Step 1: Identify: Addition problem
-   Step 2: Solve: 15 + 27 = 42
-   Step 3: Verify: 42 - 15 = 27 ✓ (correct)
-   Step 4: Mark option with "42" as "logic": "CA"
-   Step 5: Generate distractors: "40" (logic: "Forgot to add ones"), "43" (logic: "Added incorrectly"), etc.
-   
-   ❌ WRONG: Marking "40" as CA because it's close to the answer
-   ❌ WRONG: Marking the first option as CA without solving
-   ❌ WRONG: Marking multiple options as CA
-   ❌ WRONG: Guessing which answer is correct
-   ✅ CORRECT: Solving completely, verifying, then marking only the verified correct answer as CA
-
-3. INCORRECT OPTIONS (DISTRACTORS):
-   - Each incorrect option MUST have a "logic" field explaining the error
-   - Logic must be SHORT (3-6 words) describing the mistake
-   - Distractors should be based on ACTUAL ERRORS students would make
-   - Examples: "Added instead of multiplied", "Forgot to carry over", "Wrong denominator", "Calculation error"
-
-4. OPTIONS COUNT:
-   - Each question MUST have EXACTLY ${numOptions} options
-   - All ${numOptions} options must be complete and valid answers
-
-5. STEP-BY-STEP SOLUTIONS (CRITICAL - MUST BE COMPLETE AND DETAILED):
-   - Each question MUST include a COMPLETE, DETAILED step-by-step solution in the "solution" field
-   - CRITICAL: The solution MUST be complete in all sense - show ALL steps, calculations, and reasoning
-   - CRITICAL: Format each step on a NEW LINE using "Step 1:", "Step 2:", "Step 3:", etc. or numbered format
-   - Each step MUST be clearly separated and on its own line for readability
-   - Include ALL intermediate calculations and explanations
-   - Show the complete work from start to finish - do NOT skip steps
-   - Verify the final answer matches the correct option
-   - Show the logical progression from the problem statement to the final answer with ALL steps
-   - Make it educational and easy to follow - a student should be able to understand each step
-   - Format: Use line breaks between steps (each step on a new line)
-   ${solution ? '- Base the solution on the provided base solution, adapting steps to match each question\'s numbers/context' : ''}
-   - Example format:
-     "Step 1: [First step explanation and calculation]\nStep 2: [Second step explanation and calculation]\nStep 3: [Final step and answer]"
-
-QUALITY CHECKLIST (Self-Verify Before Finalizing):
-✅ Format matches base question exactly
-✅ Correct answer is mathematically verified
-✅ Options don't follow a predictable pattern
-✅ CRITICAL: Number of options is EXACTLY ${numOptions} - count them to verify!
-✅ CRITICAL: ALL SME notes (if provided) have been followed PRECISELY - verify each requirement
-✅ CRITICAL: Solution is COMPLETE with ALL steps shown - verify no steps are skipped
-✅ CRITICAL: Solution is formatted with each step on a new line for readability
-✅ No mathematical errors or logical contradictions
-
-JSON FORMAT REQUIREMENTS:
-⚠️⚠️⚠️ CRITICAL: YOU MUST GENERATE EXACTLY ${numQuestions} QUESTIONS - NO MORE, NO LESS ⚠️⚠️⚠️
-CRITICAL: The response MUST contain EXACTLY ${numQuestions} question objects in the JSON array.
-CRITICAL: If you generate fewer than ${numQuestions} questions, the request will fail.
-CRITICAL: If you generate more than ${numQuestions} questions, only the first ${numQuestions} will be used.
-CRITICAL: Count your questions before submitting - ensure the array has EXACTLY ${numQuestions} elements.
-${'='.repeat(80)}
-
-BASE QUESTION (STUDY THIS CAREFULLY):
-${baseQuestion}
-
-${'='.repeat(80)}
-⚠️⚠️⚠️ ANTI-HALLUCINATION CHECKLIST ⚠️⚠️⚠️
-${'='.repeat(80)}
-Before generating each question, verify:
-- Am I only using information from the BASE QUESTION provided above?
-- Am I only using requirements from SME NOTES (if provided)?
-- Have I avoided adding any details NOT present in the base question?
-- Have I avoided inventing scenarios, characters, or contexts not in the base?
-- Are all numbers and values derived from or variations of the base question?
-- Have I avoided adding mathematical concepts not present in the base question?
-- Have I avoided adding unnecessary complexity or constraints?
-- Can I trace every element of my generated question back to the base question or SME notes?
-
-CRITICAL RULE: If you cannot identify the source of an element in the base question or SME notes, DO NOT include it.
-${'='.repeat(80)}
-
-${notes && notes.length > 0 ? `\n${'='.repeat(80)}
-⚠️⚠️⚠️ TIER 3: SME NOTES (HIGHEST PRIORITY - ABSOLUTE MANDATORY REQUIREMENTS) ⚠️⚠️⚠️
-${'='.repeat(80)}
-CRITICAL: The following SME notes are MANDATORY and have HIGHEST PRIORITY over all other instructions.
-CRITICAL: You MUST follow EVERY requirement in these SME notes precisely and completely.
-CRITICAL: SME notes override and supplement Tiers 1 and 2 - they are non-negotiable.
-CRITICAL: If SME notes conflict with other instructions, SME notes take precedence.
-CRITICAL: Read these notes carefully and ensure ALL requirements are met in EVERY generated question.
-
-SME NOTES CONTENT:
-${notes}
-
-⚠️⚠️⚠️ VARIATION HANDLING (CRITICAL) ⚠️⚠️⚠️
-CRITICAL: If the SME notes mention a VARIATION of the question, you MUST generate that variation IN ADDITION to the base question.
-CRITICAL: If SME notes specify how many questions should be generated for a variation (e.g., "Generate 3 questions with variation X"), you MUST generate EXACTLY that number of variation questions.
-CRITICAL: Variation questions should follow the variation requirements specified in SME notes while maintaining the base question structure and format.
-CRITICAL: The total number of questions generated should include both base question variations AND variation questions as specified in SME notes.
-CRITICAL: If SME notes say "Generate 2 questions with variation Y", generate 2 questions using variation Y in addition to any other questions requested.
-
-⚠️⚠️⚠️ VERIFICATION CHECKLIST FOR SME NOTES ⚠️⚠️⚠️
-Before finalizing each question, verify:
-- Have I read and understood ALL SME notes requirements?
-- Have I incorporated ALL requirements from SME notes into this question?
-- Does this question follow ALL constraints specified in SME notes?
-- Does this question use ALL formats/types specified in SME notes?
-- If SME notes specify answer types/ranges/formats, does this question use them?
-- If SME notes specify scenarios/contexts, does this question incorporate them?
-- Have I followed EVERY instruction in the SME notes, not just some of them?
-- If SME notes mention variations, have I generated the specified number of variation questions?
-- If SME notes specify variation requirements, does this question follow those variation requirements?
 
 CRITICAL: These are the ONLY SME notes for this request. Do NOT use any notes from previous requests or conversations.
 ${'='.repeat(80)}\n` : '\nTIER 3: SME NOTES - None provided.\nCRITICAL: There are NO SME notes for this request. Do NOT use any notes from previous requests or conversations.\nProceed with Tiers 1 and 2 only. Ignore any notes that may have been mentioned in previous interactions.\n'}
@@ -588,13 +411,6 @@ CRITICAL: Read these notes carefully and ensure ALL requirements are met in EVER
 SME NOTES CONTENT:
 ${notes}
 
-⚠️⚠️⚠️ VARIATION HANDLING (CRITICAL) ⚠️⚠️⚠️
-CRITICAL: If the SME notes mention a VARIATION of the question, you MUST generate that variation IN ADDITION to the base question.
-CRITICAL: If SME notes specify how many questions should be generated for a variation (e.g., "Generate 3 questions with variation X"), you MUST generate EXACTLY that number of variation questions.
-CRITICAL: Variation questions should follow the variation requirements specified in SME notes while maintaining the base question structure and format.
-CRITICAL: The total number of questions generated should include both base question variations AND variation questions as specified in SME notes.
-CRITICAL: If SME notes say "Generate 2 questions with variation Y", generate 2 questions using variation Y in addition to any other questions requested.
-
 ⚠️⚠️⚠️ VERIFICATION CHECKLIST FOR SME NOTES ⚠️⚠️⚠️
 Before finalizing each question, verify:
 - Have I read and understood ALL SME notes requirements?
@@ -604,8 +420,6 @@ Before finalizing each question, verify:
 - If SME notes specify answer types/ranges/formats, does this question use them?
 - If SME notes specify scenarios/contexts, does this question incorporate them?
 - Have I followed EVERY instruction in the SME notes, not just some of them?
-- If SME notes mention variations, have I generated the specified number of variation questions?
-- If SME notes specify variation requirements, does this question follow those variation requirements?
 
 CRITICAL: These are the ONLY SME notes for this request. Do NOT use any notes from previous requests or conversations.
 ${'='.repeat(80)}\n` : '\nTIER 3: SME NOTES - None provided.\nCRITICAL: There are NO SME notes for this request. Do NOT use any notes from previous requests or conversations.\nProceed with Tiers 1 and 2 only. Ignore any notes that may have been mentioned in previous interactions.\n'}
@@ -626,8 +440,6 @@ Apply These Additional Requirements:
 - Labels and annotations: Include all axis labels, point coordinates, measurements, annotations visible
 - Colors and styles: Mention line types (solid, dashed), colors if relevant to understanding
 - Scale and units: Specify scales, gridlines, unit measurements shown
-- CRITICAL: The "image" field in your JSON response MUST contain ONLY the text description, NOT a URL or image link
-- CRITICAL: Do NOT generate or reference actual images - provide ONLY a detailed text description in the "image" field
 
 2. Image Description Format
 Structure your descriptions clearly using this template:
@@ -935,15 +747,41 @@ CRITICAL FINAL REMINDER:
       tokensNeeded = Math.floor(tokensNeeded * 1.2)
     }
     
-    const response = await client.chat.completions.create({
-      model: model,
+    // Set temperature based on question type
+    // For mathematical questions: 0.5 for more deterministic, precise answers
+    // For word problems: 0.9 (within 0.6-1.2 range) to maintain sentence structure while allowing variation
+    // For image-based: 0.7 (default)
+    let temperature = 0.7
+    if (questionType === 'mathematical') {
+      temperature = 0.5
+    } else if (questionType === 'word_problem') {
+      temperature = 0.9 // Middle of 0.6-1.2 range to balance creativity with structure preservation
+    }
+    
+    const apiParams: any = {
+      model: model, // Supports o3, o4-mini, gpt-5, gpt-4o
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
       max_tokens: tokensNeeded,
-      temperature: 0.7,
-    })
+      temperature: temperature,
+    }
+    
+    let response
+    try {
+      response = await client.chat.completions.create(apiParams)
+    } catch (error: any) {
+      // If model is not available, fallback to gpt-4o
+      if ((model === 'gpt-5' || model === 'o3' || model === 'o4-mini') && 
+          (error?.message?.includes('model') || error?.code === 'model_not_found')) {
+        console.warn(`${model} not available, falling back to GPT-4o`)
+        apiParams.model = 'gpt-4o'
+        response = await client.chat.completions.create(apiParams)
+      } else {
+        throw error
+      }
+    }
     
     if (!response.choices || response.choices.length === 0) {
       throw new Error('GPT returned empty response')
@@ -1128,22 +966,16 @@ CRITICAL FINAL REMINDER:
       // Trim to exact number needed
       const finalOptions = validOptions.slice(0, numOptions)
       
-      // Handle image field: For image-based questions, use description directly (don't generate images)
-      // For other question types, generate images if needed
-      let imageField = question.image || ''
-      if (questionType === 'image_based') {
-        // For image-based questions, use the description directly (already in question.image)
-        // No image generation needed - just use the text description
-        imageField = question.image || ''
-      } else if (shouldGenerateImages && imageField) {
-        // For non-image-based questions, generate images if needed
+      // Generate image if needed
+      let imageUrl = question.image || ''
+      if (shouldGenerateImages && imageUrl) {
         try {
           const generatedImage = await generateImageForQuestion(
             question.question,
-            imageField
+            imageUrl
           )
           if (generatedImage) {
-            imageField = generatedImage
+            imageUrl = generatedImage
           }
         } catch (error) {
           console.error('Error generating image:', error)
@@ -1153,7 +985,7 @@ CRITICAL FINAL REMINDER:
       validatedQuestions.push({
         question: String(question.question).trim(),
         options: finalOptions,
-        image: imageField,
+        image: imageUrl,
         solution: question.solution ? String(question.solution).trim() : ''
       })
     }
