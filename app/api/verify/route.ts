@@ -74,12 +74,14 @@ STEP 4: VERIFY ALL OPTIONS INDIVIDUALLY
 
 STEP 5: VERIFY DISTRACTOR LOGIC AND OPTION VALUES
 - For each incorrect option, check if the provided logic accurately describes why it's wrong
-- CRITICAL: Verify that each option's VALUE actually matches its described logic
-- For example, if logic says "Used subtraction instead", the option value should be the result of using subtraction
-- If logic says "Forgot to carry over", the option value should reflect that specific error
-- If logic says "Wrong denominator", the option value should have the wrong denominator
-- If an option's value does NOT match its logic, you MUST correct the option value to match the logic
-- If the logic is inaccurate or missing, provide a better description
+- IMPORTANT: Only flag option value/logic mismatches if they are MATHEMATICALLY SIGNIFICANT
+- Minor discrepancies or alternative valid interpretations should NOT be flagged as errors
+- Only correct option values if:
+  * The logic clearly describes a specific error (e.g., "Used subtraction instead") AND
+  * The current option value is clearly wrong (e.g., logic says "subtraction" but value is the addition result)
+  * The mismatch would confuse students or make the question invalid
+- If the logic is reasonable and the option is clearly incorrect (even if not perfectly matching the logic description), do NOT change it
+- Be conservative: Only change things when there are clear mathematical errors, not stylistic differences
 
 STEP 6: VERIFY THE QUESTION ITSELF
 - Check if the question has any mathematical errors
@@ -121,17 +123,18 @@ CRITICAL ERROR DETECTION RULES:
    - Provide corrected logic
    - Ensure the option value matches the corrected logic
 
-6. If an option value does not match its logic (CRITICAL - MUST CHECK):
-   - Set hasErrors: true
-   - Add error: "Option [letter] value does not match its logic. Logic says '[logic]', but value is '[current value]'."
-   - Calculate what the option value SHOULD be based on the logic
-   - Update the option value to match the logic
-   - Examples:
-     * Logic: "Used subtraction instead" for "5 + 7" → Option should be "-2" or "5 - 7" (result of subtraction), NOT "12" or "13"
-     * Logic: "Forgot to carry over" for "15 + 27" → Option should be "32" (15+27 without carrying), NOT "42" or "40"
-     * Logic: "Wrong denominator" for fraction addition → Option should have the wrong denominator applied
-     * Logic: "Calculation error" → Option should reflect a specific calculation mistake
-   - CRITICAL: The option value MUST be the result of applying the error described in the logic
+6. If an option value does not match its logic (ONLY FLAG IF MATHEMATICALLY SIGNIFICANT):
+   - Only flag this if the mismatch is clear and would make the question confusing or invalid
+   - Be conservative: If the option is clearly incorrect (even if not perfectly matching the logic), that's acceptable
+   - Only set hasErrors: true if:
+     * The logic describes a specific error AND
+     * The current option value is clearly the correct answer (not just a different wrong answer)
+     * The mismatch would make the question mathematically invalid
+   - Examples of when to flag:
+     * Logic: "Used subtraction instead" but option value is the correct answer → FLAG
+     * Logic: "Used subtraction instead" but option value is a different wrong answer → DO NOT FLAG (acceptable)
+     * Logic: "Calculation error" but option is clearly wrong → DO NOT FLAG (acceptable, even if not specific)
+   - Only update option values if the current value is mathematically wrong in a way that contradicts the logic
 
 OUTPUT FORMAT (JSON only, no markdown):
 {
@@ -147,14 +150,19 @@ OUTPUT FORMAT (JSON only, no markdown):
 }
 
 CRITICAL OUTPUT REQUIREMENTS:
-- If no errors are found: set "hasErrors": false and return original question/options/solution unchanged
-- If errors are found: set "hasErrors": true and provide corrected versions
+- BE CONSERVATIVE: Only flag errors if there are ACTUAL mathematical mistakes, not minor discrepancies
+- If the question is mathematically correct and the correct answer is properly marked: set "hasErrors": false
+- If no errors are found: set "hasErrors": false and return original question/options/solution EXACTLY as provided (unchanged)
+- Only set "hasErrors": true if there are clear mathematical errors that need correction
+- DO NOT change correct answers, solutions, or options just because they could be worded differently
+- DO NOT change option values unless they are mathematically wrong (e.g., a distractor is actually correct)
 - The "correctedOptions" array MUST have EXACTLY ${options.length} options (same as input) - DO NOT add or remove options
 - Exactly ONE option MUST have "logic": "CA"
 - "verificationNotes" MUST include: "I solved the question and got [your answer]. The correct option is [letter]."
 - Return ONLY valid JSON, no markdown code blocks, no explanations outside JSON
 - Be extremely careful and thorough - mathematical accuracy is critical
-- CRITICAL: Maintain the exact same number of options - if you need to fix an option, replace it in place, do not add or remove options`
+- CRITICAL: Maintain the exact same number of options - if you need to fix an option, replace it in place, do not add or remove options
+- CONSERVATIVE APPROACH: When in doubt, do NOT change anything - only correct clear mathematical errors`
 
     try {
       const client = getOpenAIClient()
@@ -177,7 +185,7 @@ CRITICAL INSTRUCTIONS:
           { role: 'user', content: verifyPrompt }
         ],
         max_tokens: 3000,
-        temperature: 0.1, // Very low temperature for maximum accuracy
+        temperature: 0.0, // Zero temperature for maximum consistency and determinism
       })
       
       if (!response.choices || response.choices.length === 0) {
@@ -267,7 +275,7 @@ CRITICAL INSTRUCTIONS:
             { role: 'user', content: verifyPrompt }
           ],
           max_tokens: 3000,
-          temperature: 0.1,
+          temperature: 0.0, // Zero temperature for maximum consistency and determinism
         })
         
         if (!response.choices || response.choices.length === 0) {

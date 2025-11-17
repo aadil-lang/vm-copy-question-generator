@@ -35,6 +35,7 @@ function GeneratePageContent() {
   const [copiedQuestionIndex, setCopiedQuestionIndex] = useState<number | null>(null)
   const [copiedSelected, setCopiedSelected] = useState(false)
   const [copiedAll, setCopiedAll] = useState(false)
+  const [verificationMessage, setVerificationMessage] = useState<{index: number, message: string, type: 'success' | 'error'} | null>(null)
   
   const pageTitle = questionType === 'mathematical' 
     ? 'Mathematical Questions Generator'
@@ -223,6 +224,12 @@ function GeneratePageContent() {
     // This ensures each option appears on its own line when pasted into spreadsheets with word wrap
     let text = question.question
     
+    // Add image description below question text if it exists
+    if (question.image) {
+      text += ' '.repeat(100) // Add spacing before image description
+      text += `Image Description: ${question.image}`
+    }
+    
     // Add multiple spaces to ensure first option wraps to next line
     text += ' '.repeat(100) // Add 100 spaces to push first option to next line
     
@@ -249,8 +256,12 @@ function GeneratePageContent() {
     const question = questions[index]
     if (!question) return
 
+    // Prevent multiple simultaneous verifications
+    if (verifyingQuestions.has(index)) return
+
     setVerifyingQuestions(prev => new Set(prev).add(index))
     setError('')
+    setVerificationMessage(null) // Clear any previous message
 
     try {
       const response = await fetch('/api/verify', {
@@ -279,48 +290,72 @@ function GeneratePageContent() {
         
         // Update the question if corrections were made
         if (result.hasErrors) {
-          setQuestions(prev => {
-            const updated = [...prev]
-            // Ensure corrected options maintain the same count as original
-            let correctedOptions = result.correctedOptions || question.options
-            if (Array.isArray(correctedOptions) && correctedOptions.length !== question.options.length) {
-              // If count doesn't match, adjust to maintain original count
-              if (correctedOptions.length > question.options.length) {
-                correctedOptions = correctedOptions.slice(0, question.options.length)
-              } else if (correctedOptions.length < question.options.length) {
-                // Pad with original options if needed
-                const originalOptions = [...question.options]
-                const newOptions = [...correctedOptions]
-                while (newOptions.length < question.options.length) {
-                  const originalIndex = newOptions.length
-                  newOptions.push({
-                    text: originalOptions[originalIndex].text,
-                    logic: originalOptions[originalIndex].logic
-                  })
-                }
-                correctedOptions = newOptions
+          // Check if corrections are actually different from original
+          const correctedQuestion = result.correctedQuestion || question.question
+          const correctedSolution = result.correctedSolution || question.solution
+          let correctedOptions = result.correctedOptions || question.options
+          
+          // Ensure corrected options maintain the same count as original
+          if (Array.isArray(correctedOptions) && correctedOptions.length !== question.options.length) {
+            // If count doesn't match, adjust to maintain original count
+            if (correctedOptions.length > question.options.length) {
+              correctedOptions = correctedOptions.slice(0, question.options.length)
+            } else if (correctedOptions.length < question.options.length) {
+              // Pad with original options if needed
+              const originalOptions = [...question.options]
+              const newOptions = [...correctedOptions]
+              while (newOptions.length < question.options.length) {
+                const originalIndex = newOptions.length
+                newOptions.push({
+                  text: originalOptions[originalIndex].text,
+                  logic: originalOptions[originalIndex].logic
+                })
               }
+              correctedOptions = newOptions
             }
-            
-            updated[index] = {
-              question: result.correctedQuestion || question.question,
-              options: correctedOptions,
-              solution: result.correctedSolution || question.solution,
-              image: question.image,
-            }
-            return updated
+          }
+          
+          // Check if options are actually different
+          const optionsChanged = correctedOptions.some((opt: any, idx: number) => {
+            const original = question.options[idx]
+            return !original || opt.text !== original.text || opt.logic !== original.logic
           })
           
-          // Show success message with verification notes
-          const message = `Question verified and corrected!\n\nErrors found:\n${result.errors?.join('\n') || 'N/A'}\n\n${result.verificationNotes || ''}`
-          alert(message)
+          const questionChanged = correctedQuestion !== question.question
+          const solutionChanged = correctedSolution !== question.solution
+          
+          // Only update if something actually changed
+          if (questionChanged || optionsChanged || solutionChanged) {
+            setQuestions(prev => {
+              const updated = [...prev]
+              updated[index] = {
+                question: correctedQuestion,
+                options: correctedOptions,
+                solution: correctedSolution,
+                image: question.image,
+              }
+              return updated
+            })
+            
+            // Show success message with verification notes (non-blocking)
+            const message = `Question verified and corrected!\n\nErrors found:\n${result.errors?.join('\n') || 'N/A'}\n\n${result.verificationNotes || ''}`
+            setVerificationMessage({ index, message, type: 'success' })
+            setTimeout(() => setVerificationMessage(null), 10000) // Auto-dismiss after 10s
+          } else {
+            // No actual changes, just show verification success
+            setVerificationMessage({ index, message: 'Question verified successfully! No changes needed.', type: 'success' })
+            setTimeout(() => setVerificationMessage(null), 5000) // Auto-dismiss after 5s
+          }
         } else {
-          alert('Question verified successfully! No errors found.')
+          setVerificationMessage({ index, message: 'Question verified successfully! No errors found.', type: 'success' })
+          setTimeout(() => setVerificationMessage(null), 5000) // Auto-dismiss after 5s
         }
       }
     } catch (err: any) {
       setError(err.message || 'Failed to verify question')
+      setVerificationMessage({ index, message: err.message || 'Failed to verify question', type: 'error' })
       setTimeout(() => setError(''), 5000)
+      setTimeout(() => setVerificationMessage(null), 5000)
     } finally {
       setVerifyingQuestions(prev => {
         const newSet = new Set(prev)
@@ -410,7 +445,15 @@ function GeneratePageContent() {
     { label: '[', value: '[' },
     { label: ']', value: ']' },
     { label: '{', value: '{' },
-    { label: '}', value: '}' }
+    { label: '}', value: '}' },
+    { label: '∇', value: '∇' }, // gradient
+    { label: 'Δ', value: 'Δ' }, // delta
+    { label: '≅', value: '≅' }, // approxequalto (congruent to)
+    { label: '≡', value: '≡' }, // identicalto
+    { label: '/', value: '/' }, // slash
+    { label: '\\', value: '\\' }, // backslash
+    { label: '△', value: '△' }, // triangle
+    { label: '·', value: '·' } // dot
   ]
   
   const toggleSelection = (index: number) => {
@@ -921,6 +964,51 @@ function GeneratePageContent() {
             {error}
           </div>
         )}
+
+        {verificationMessage && (
+          <div 
+            className="verification-message" 
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '20px',
+              backgroundColor: verificationMessage.type === 'success' ? '#d4edda' : '#f8d7da',
+              border: `1px solid ${verificationMessage.type === 'success' ? '#c3e6cb' : '#f5c6cb'}`,
+              color: verificationMessage.type === 'success' ? '#155724' : '#721c24',
+              padding: '15px 20px',
+              borderRadius: '4px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              maxWidth: '500px',
+              zIndex: 10000,
+              whiteSpace: 'pre-line',
+              fontSize: '14px'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+              <div style={{ flex: 1 }}>
+                <strong>{verificationMessage.type === 'success' ? '✓ Verification Complete' : '✗ Verification Failed'}</strong>
+                <div style={{ marginTop: '8px' }}>{verificationMessage.message}</div>
+              </div>
+              <button
+                onClick={() => setVerificationMessage(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  color: 'inherit',
+                  padding: '0',
+                  lineHeight: '1',
+                  opacity: 0.7
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
         
         {questions.length > 0 && (
           <div className="results">
@@ -966,14 +1054,18 @@ function GeneratePageContent() {
                   </div>
                   <div className="question-text">{question.question}</div>
                   {question.image && (
-                    <img
-                      src={question.image}
-                      alt="Question Image"
-                      className="question-image"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none'
-                      }}
-                    />
+                    <div className="image-description" style={{
+                      marginTop: '12px',
+                      padding: '10px',
+                      backgroundColor: '#e3f2fd',
+                      borderRadius: '4px',
+                      border: '1px solid #90caf9',
+                      fontSize: '14px',
+                      color: '#555',
+                      fontStyle: 'italic'
+                    }}>
+                      <strong>Image Description:</strong> {question.image}
+                    </div>
                   )}
                   {question.options && question.options.length > 0 && (
                     <>
@@ -1012,28 +1104,40 @@ function GeneratePageContent() {
                           border: '1px solid #e0e0e0'
                         }}
                       >
-                        {question.solution.split(/\n+/).map((line, idx) => {
-                          // Format steps to appear on new lines
-                          // If line starts with "Step" or number, ensure it's on its own line
-                          const trimmedLine = line.trim()
-                          if (!trimmedLine) return <br key={idx} />
+                        {(() => {
+                          // First, replace literal \n strings with actual newlines if they exist
+                          let solutionText = question.solution.replace(/\\n/g, '\n')
                           
-                          // Check if it's a step (Step 1:, Step 2:, 1., 2., etc.)
-                          const isStep = /^(Step\s*\d+|^\d+\.|^[A-Z]\.)/i.test(trimmedLine)
+                          // Split by newlines
+                          let lines = solutionText.split(/\n+/)
                           
-                          return (
-                            <div 
-                              key={idx} 
-                              style={{
-                                marginBottom: isStep ? '8px' : '4px',
-                                fontWeight: isStep ? '600' : '400',
-                                color: isStep ? '#5a2d7a' : '#333'
-                              }}
-                            >
-                              {trimmedLine}
-                            </div>
-                          )
-                        })}
+                          // If we only have one line but it contains "Step", try to split by "Step" pattern
+                          if (lines.length === 1 && /Step\s*\d+/i.test(solutionText)) {
+                            // Split by "Step" pattern to separate steps even if no newlines
+                            lines = solutionText.split(/(?=Step\s*\d+)/i).filter(line => line.trim())
+                          }
+                          
+                          return lines.map((line, idx) => {
+                            const trimmedLine = line.trim()
+                            if (!trimmedLine) return <br key={idx} />
+                            
+                            // Check if it's a step (Step 1:, Step 2:, 1., 2., etc.)
+                            const isStep = /^(Step\s*\d+|^\d+\.|^[A-Z]\.)/i.test(trimmedLine)
+                            
+                            return (
+                              <div 
+                                key={idx} 
+                                style={{
+                                  marginBottom: isStep ? '8px' : '4px',
+                                  fontWeight: isStep ? '600' : '400',
+                                  color: isStep ? '#5a2d7a' : '#333'
+                                }}
+                              >
+                                {trimmedLine}
+                              </div>
+                            )
+                          })
+                        })()}
                       </div>
                     </div>
                   )}

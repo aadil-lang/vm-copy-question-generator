@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getOpenAIClient, generateImageForQuestion } from '@/lib/openai'
+import { getOpenAIClient } from '@/lib/openai'
 import { loadCurriculumSubskills } from '@/lib/curriculum'
 import { parseNumberOfOptions, determineQuestionType } from '@/lib/question-utils'
 
@@ -186,7 +186,6 @@ Before providing your final answer, you must:
   const uploadedImageInfo = imageFiles.length > 0 
     ? `\nBase Question Uploaded Images: ${imageFiles.length} image(s) uploaded. These images are provided as base64 data and should be used as reference for generating similar visual elements.`
     : ''
-  const shouldGenerateImages = Boolean(images || imageFiles.length)
   
   let userPrompt = ''
   
@@ -324,7 +323,8 @@ CRITICAL REQUIREMENTS FOR OPTIONS AND CORRECT ANSWERS:
 5. STEP-BY-STEP SOLUTIONS (CRITICAL - MUST BE COMPLETE AND DETAILED):
    - Each question MUST include a COMPLETE, DETAILED step-by-step solution in the "solution" field
    - CRITICAL: The solution MUST be complete in all sense - show ALL steps, calculations, and reasoning
-   - CRITICAL: Format each step on a NEW LINE using "Step 1:", "Step 2:", "Step 3:", etc. or numbered format
+   - ⚠️⚠️⚠️ CRITICAL FORMATTING REQUIREMENT ⚠️⚠️⚠️: Format each step on a NEW LINE using "Step 1:", "Step 2:", "Step 3:", etc.
+   - ⚠️⚠️⚠️ YOU MUST USE \n (newline character) BETWEEN EACH STEP - DO NOT PUT MULTIPLE STEPS ON THE SAME LINE ⚠️⚠️⚠️
    - Each step MUST be clearly separated and on its own line for readability
    - Include ALL intermediate calculations and explanations
    - Show the complete work from start to finish - do NOT skip steps
@@ -333,8 +333,9 @@ CRITICAL REQUIREMENTS FOR OPTIONS AND CORRECT ANSWERS:
    - Make it educational and easy to follow - a student should be able to understand each step
    - Format: Use line breaks between steps (each step on a new line)
    ${solution ? '- Base the solution on the provided base solution, adapting steps to match each question\'s numbers/context' : ''}
-   - Example format:
+   - Example format (CRITICAL: Each step MUST be on a separate line with \n):
      "Step 1: [First step explanation and calculation]\nStep 2: [Second step explanation and calculation]\nStep 3: [Final step and answer]"
+   - CRITICAL: You MUST use \n (newline character) between each step - do NOT put multiple steps on the same line
 
 QUALITY CHECKLIST (Self-Verify Before Finalizing):
 ✅ Format matches base question exactly
@@ -356,15 +357,19 @@ JSON FORMAT REQUIREMENTS:
 - End response with ]
 
 EXAMPLE FORMAT:
-[{"question": "...", "options": [{"text": "...", "logic": "CA"}, {"text": "...", "logic": "..."}, ...], "image": "", "solution": "..."}, ...]
+[{"question": "...", "options": [{"text": "...", "logic": "CA"}, {"text": "...", "logic": "..."}, ...], "image": "", "solution": "Step 1: ...\nStep 2: ...\nStep 3: ..."}, ...]
 
 CRITICAL FINAL REMINDER:
 - You MUST return EXACTLY ${numQuestions} questions in the JSON array
 - CRITICAL: Each question MUST have EXACTLY ${numOptions} options - NO MORE, NO LESS
+- CRITICAL: Each solution MUST have steps on SEPARATE LINES using \n - do NOT put multiple steps on the same line
+- CRITICAL: Solution format must be: "Step 1: ...\nStep 2: ...\nStep 3: ..." (with \n between each step)
 - Count your questions: The array must have exactly ${numQuestions} elements, no more, no less
 - Count options in EACH question: Every question must have exactly ${numOptions} options
 - Verify before submitting: Check that your JSON array contains exactly ${numQuestions} question objects
 - Verify before submitting: Check that EACH question object has exactly ${numOptions} options in its options array
+- Verify before submitting: Check that EACH solution has steps separated by \n (newline characters)
+- DO NOT put multiple solution steps on the same line - each step MUST be on its own line with \n
 - ${notes && notes.length > 0 ? 'CRITICAL: Verify that ALL SME notes requirements have been followed in EVERY question' : ''}`
   } else {
     // Word Problems or Image-Based Questions
@@ -395,6 +400,25 @@ Before generating each question, verify:
 - Have I avoided adding mathematical concepts not present in the base question?
 - Have I avoided adding unnecessary complexity or constraints?
 - Can I trace every element of my generated question back to the base question or SME notes?
+
+${isImageBased ? `CRITICAL FOR IMAGE-BASED QUESTIONS - ANTI-HALLUCINATION RULES:
+- USE THE SAME IMAGE TYPE: If base question has a triangle, ALL generated questions must have triangles (not circles, rectangles, etc.)
+- USE THE SAME IMAGE STRUCTURE: If base has a right triangle, generated questions should have right triangles (not equilateral, isosceles, etc. unless base specifies)
+- MAINTAIN SAME VISUAL ELEMENTS: If base shows angles, all generated should show angles. If base shows sides, all should show sides.
+- SAME QUESTION FORMAT: If base asks "What is the area?", generated should ask "What is the area?" (not "What is the perimeter?" or different question types)
+- ONLY VARY NUMERICAL VALUES: Change the measurements (3 cm → 5 cm, 45° → 60°) but keep the same structure
+- SAME MATHEMATICAL CONCEPT: If base is about area, all generated should be about area (not volume, perimeter, etc.)
+- USE BASE IMAGE DESCRIPTION AS TEMPLATE: Follow the exact same format and structure as the base image description, only changing numbers
+- DO NOT INVENT NEW VISUAL ELEMENTS: If base doesn't have a grid, don't add a grid. If base doesn't have labels, don't add labels.
+- DO NOT CHANGE QUESTION TYPE: If base asks for a measurement, all should ask for measurements. If base asks for an angle, all should ask for angles.
+- PRESERVE IMAGE DESCRIPTION FORMAT: Use the same sentence structure and detail level as the base image description
+
+EXAMPLE:
+Base: "A right triangle with base = 3 cm, height = 4 cm, hypotenuse = 5 cm. Question: What is the area?"
+✅ CORRECT: "A right triangle with base = 5 cm, height = 6 cm, hypotenuse = 7.81 cm. Question: What is the area?"
+❌ WRONG: "A circle with radius = 5 cm. Question: What is the circumference?" (different image type and question)
+❌ WRONG: "A right triangle with base = 3 cm, height = 4 cm. Question: What is the perimeter?" (different question type)
+❌ WRONG: "A right triangle with base = 3 cm, height = 4 cm, hypotenuse = 5 cm, and a grid showing coordinates. Question: What is the area?" (added grid not in base)` : ''}
 
 CRITICAL RULE: If you cannot identify the source of an element in the base question or SME notes, DO NOT include it.
 ${'='.repeat(80)}
@@ -449,21 +473,94 @@ Structure your descriptions clearly using this template:
 [Note special markings or annotations].
 [State what needs to be found, indicated by variable or question mark]."
 
-3. Logical and Realistic Feasibility
+3. Mathematical Correctness Verification (CRITICAL - MUST VERIFY BEFORE DESCRIBING)
+BEFORE writing any image description, you MUST verify that all measurements and relationships are mathematically correct:
+
+FOR TRIANGLES:
+- Triangle Inequality: Sum of any two sides > third side (a + b > c, a + c > b, b + c > a)
+- Angle Sum: Sum of all angles = 180°
+- Side-Angle Relationships: Use Law of Sines and Law of Cosines to verify consistency
+  * Law of Sines: a/sin(A) = b/sin(B) = c/sin(C)
+  * Law of Cosines: c² = a² + b² - 2ab*cos(C) (and variations)
+- If given sides and angles, verify they satisfy all triangle relationships
+- If given only sides, calculate angles using Law of Cosines and verify sum = 180°
+- If given only angles, verify sum = 180° (sides can be scaled proportionally)
+- Example verification: Triangle with sides 5, 5, 8 and angles 70°, 70°, 40°
+  * Check angle sum: 70 + 70 + 40 = 180° ✓
+  * Check triangle inequality: 5 + 5 > 8 (10 > 8) ✓, 5 + 8 > 5 (13 > 5) ✓, 5 + 8 > 5 ✓
+  * Check Law of Sines: 5/sin(70°) ≈ 5.32, 8/sin(40°) ≈ 12.45 → NOT EQUAL → INVALID TRIANGLE
+  * CORRECT: Either adjust angles to match sides OR adjust sides to match angles
+
+FOR CIRCLES:
+- Radius, diameter, circumference relationships: C = 2πr, d = 2r
+- Arc length and central angle: arc = (θ/360°) × 2πr
+- Sector area: area = (θ/360°) × πr²
+
+FOR POLYGONS:
+- Sum of interior angles: (n-2) × 180° for n-sided polygon
+- Regular polygons: All sides and angles equal
+- Verify side lengths and angles are consistent
+
+FOR GRAPHS:
+- Points must satisfy the equation: y = f(x)
+- Coordinates must be consistent with scale and axis labels
+- Slopes and intercepts must match the equation
+
+FOR TABLES/CHARTS:
+- Sums, averages, and relationships must be mathematically consistent
+- Percentages must sum to 100% (if applicable)
+- Data values must align with visual representation
+
+CRITICAL PROCESS:
+1. BEFORE writing the image description, calculate all relationships
+2. Verify that all given measurements are mathematically consistent
+3. If inconsistencies are found, adjust values to make them mathematically correct
+4. Only then write the image description with verified correct values
+5. DO NOT describe a figure that is mathematically impossible
+
+EXAMPLE OF CORRECT PROCESS:
+❌ WRONG: "Isosceles triangle with sides 5 cm, 5 cm, 8 cm and angles 70°, 70°, 40°"
+   (This violates Law of Sines - sides don't match angles)
+
+✅ CORRECT PROCESS:
+   Step 1: Choose sides: 5 cm, 5 cm, 8 cm
+   Step 2: Calculate angles using Law of Cosines:
+     Angle opposite 8 cm: cos(C) = (5² + 5² - 8²)/(2×5×5) = (25+25-64)/50 = -14/50 = -0.28
+     C = arccos(-0.28) ≈ 106.26°
+   Step 3: Since isosceles, base angles = (180 - 106.26)/2 = 36.87° each
+   Step 4: Verify: 36.87 + 36.87 + 106.26 = 180° ✓
+   Step 5: Write description: "Isosceles triangle with two equal sides measuring 5 cm each, base measuring 8 cm, base angles measuring approximately 37° each, and vertex angle measuring approximately 106°."
+
+OR
+
+✅ ALTERNATIVE CORRECT PROCESS:
+   Step 1: Choose angles: 70°, 70°, 40° (sum = 180° ✓)
+   Step 2: Choose one side, say 5 cm
+   Step 3: Use Law of Sines to calculate other sides:
+     a/sin(70°) = b/sin(70°) = c/sin(40°) = 5/sin(70°) ≈ 5.32
+     So: a = 5.32×sin(70°) ≈ 5 cm, b = 5.32×sin(70°) ≈ 5 cm, c = 5.32×sin(40°) ≈ 3.42 cm
+   Step 4: Write description: "Isosceles triangle with two equal sides measuring 5 cm each, base measuring approximately 3.4 cm, base angles measuring 70° each, and vertex angle measuring 40°."
+
+4. Logical and Realistic Feasibility
 - Accurate representations: Graphs must follow mathematical rules (linear functions are straight lines, parabolas open correctly, etc.)
 - Proportional accuracy: Visual proportions should match numerical values
 - Realistic data: If showing real-world data (temperatures, prices), use plausible values
 - Consistent scales: Axes and measurements must be mathematically consistent
 - Physical possibility: Geometric figures must obey mathematical constraints (triangle inequality, angle sum properties, Pythagorean relationships)
 
-4. Mathematical Accuracy in Visuals
+5. Mathematical Accuracy in Visuals (MANDATORY VERIFICATION)
+- CRITICAL: You MUST verify mathematical correctness BEFORE writing the image description
 - Correct plotting: Points, lines, curves are mathematically accurate to the equations
-- Valid constructions: Geometric figures can actually exist with given measurements
+- Valid constructions: Geometric figures can actually exist with given measurements - VERIFY THIS
 - Data consistency: Table/chart values align with what's being asked
 - Scale verification: If graph shows coordinates, they must be correctly positioned
-- Angle accuracy: Marked angles should visually approximate their values
+- Angle accuracy: Marked angles must be mathematically consistent with side lengths
+- Side-angle consistency: For triangles, verify Law of Sines and Law of Cosines
+- Geometric constraints: All polygons must satisfy angle sum formulas and side relationships
+- DO NOT describe any figure without first verifying all mathematical relationships
+- If you cannot verify correctness, recalculate values until they are mathematically consistent
 
-5. Completeness of Description
+6. Completeness of Description
 Your description must include:
 - All given information: Every number, label, symbol visible in image
 - Spatial relationships: "above," "below," "parallel to," "intersects at," "perpendicular to"
@@ -471,13 +568,13 @@ Your description must include:
 - Grid information: If present, specify grid spacing and scale
 - Legend/key: If the image has a legend, describe it fully
 
-6. Types of Image-Based Questions
+7. Types of Image-Based Questions
 A. Geometric Diagrams - Triangles, circles, polygons, 3D shapes, composite figures
 B. Graphs and Functions - Linear equations, parabolas, piecewise functions, systems of equations, transformations
 C. Data Representations - Bar graphs, line graphs, pie charts, histograms, scatter plots, tables
 D. Specialized Diagrams - Venn diagrams, number lines, probability trees, trigonometric unit circles
 
-7. Distractor Logic for Image-Based Questions
+8. Distractor Logic for Image-Based Questions
 Each distractor MUST have logic explaining VISUAL MISINTERPRETATION:
 - "Misread angle measurement from protractor"
 - "Counted wrong number of sides/shapes"
@@ -486,11 +583,16 @@ Each distractor MUST have logic explaining VISUAL MISINTERPRETATION:
 - "Confused similar-looking angles or lengths"
 - "Misread coordinate points on graph"
 
-8. Image Variation Requirements
+9. Image Variation Requirements (CRITICAL - MUST FOLLOW BASE QUESTION STRUCTURE)
 - Each of the ${numQuestions} questions MUST have a DIFFERENT image description
-- Change visual elements (sides, angles, graph equations, table values) while maintaining the same mathematical concept
+- CRITICAL: ALL generated images must be the SAME TYPE as the base question (triangle → triangles, graph → graphs, table → tables)
+- CRITICAL: ALL generated questions must ask the SAME TYPE of question as the base (area → area, angle → angle, value → value)
+- ONLY change the numerical values in the image description (measurements, angles, coordinates, table values)
+- Maintain the same visual structure, labels, and format as the base question
 - Ensure all images are mathematically valid and consistent with their descriptions
-- Do NOT repeat the same image description across questions` : `Characteristics: Mathematical concepts embedded in real-life scenarios, stories, or contexts.
+- Do NOT repeat the same image description across questions
+- Do NOT change the image type, question type, or add new visual elements not in the base question
+- Use the base question's image description as a template - follow its exact structure and format` : `Characteristics: Mathematical concepts embedded in real-life scenarios, stories, or contexts.
 
 Apply These Additional Requirements:
 
@@ -607,7 +709,8 @@ CRITICAL REQUIREMENTS FOR OPTIONS AND CORRECT ANSWERS:
 5. STEP-BY-STEP SOLUTIONS (CRITICAL - MUST BE COMPLETE AND DETAILED):
    - Each question MUST include a COMPLETE, DETAILED step-by-step solution in the "solution" field
    - CRITICAL: The solution MUST be complete in all sense - show ALL steps, calculations, and reasoning
-   - CRITICAL: Format each step on a NEW LINE using "Step 1:", "Step 2:", "Step 3:", etc. or numbered format
+   - ⚠️⚠️⚠️ CRITICAL FORMATTING REQUIREMENT ⚠️⚠️⚠️: Format each step on a NEW LINE using "Step 1:", "Step 2:", "Step 3:", etc.
+   - ⚠️⚠️⚠️ YOU MUST USE \n (newline character) BETWEEN EACH STEP - DO NOT PUT MULTIPLE STEPS ON THE SAME LINE ⚠️⚠️⚠️
    - Each step MUST be clearly separated and on its own line for readability
    - Include ALL intermediate calculations and explanations
    - Show the complete work from start to finish - do NOT skip steps
@@ -616,8 +719,9 @@ CRITICAL REQUIREMENTS FOR OPTIONS AND CORRECT ANSWERS:
    - Make it educational and easy to follow - a student should be able to understand each step
    - Format: Use line breaks between steps (each step on a new line)
    ${solution ? '- Base the solution on the provided base solution, adapting steps to match each question\'s numbers/context' : ''}
-   - Example format:
+   - Example format (CRITICAL: Each step MUST be on a separate line with \n):
      "Step 1: [First step explanation and calculation]\nStep 2: [Second step explanation and calculation]\nStep 3: [Final step and answer]"
+   - CRITICAL: You MUST use \n (newline character) between each step - do NOT put multiple steps on the same line
 
 QUALITY CHECKLIST (Self-Verify Before Finalizing):
 ✅ Format matches base question exactly
@@ -626,6 +730,10 @@ QUALITY CHECKLIST (Self-Verify Before Finalizing):
 ✅ CRITICAL: Number of options is EXACTLY ${numOptions} - count them to verify!
 ✅ ${isImageBased ? 'Complete visual description provided for each question' : 'Scenario is different from base and realistic'}
 ✅ ${isImageBased ? 'Description allows problem to be solved' : 'Phrasing style matches base question'}
+✅ ${isImageBased ? 'CRITICAL: Image type matches base question (triangle → triangles, graph → graphs, etc.)' : ''}
+✅ ${isImageBased ? 'CRITICAL: Question format matches base question (area → area, angle → angle, etc.)' : ''}
+✅ ${isImageBased ? 'CRITICAL: Only numerical values changed, not image structure or question type' : ''}
+✅ ${isImageBased ? 'CRITICAL: All measurements in image description are mathematically correct (triangle angles sum to 180°, Law of Sines/Cosines satisfied, etc.)' : ''}
 ✅ ${isImageBased ? '' : 'CRITICAL: Each copy question has a DIFFERENT correct answer value than the base question - verify this!'}
 ✅ CRITICAL: ALL SME notes (if provided) have been followed PRECISELY - verify each requirement individually
 ✅ CRITICAL: Solution is COMPLETE with ALL steps shown - verify no steps are skipped
@@ -669,7 +777,7 @@ Each question object MUST have this structure:
 ${isImageBased ? `{
   "image": "[Detailed image description with sides, angles, equations, table values, etc.]",
   "question": "[Question text referencing the image]",
-  "solution": "[Step-by-step solution with reference to image elements]",
+  "solution": "Step 1: [First step with reference to image elements]\nStep 2: [Second step]\nStep 3: [Final step]",
   "options": [
     {"text": "[Correct answer value]", "logic": "CA"},
     {"text": "[Distractor 1 value]", "logic": "[Visual misinterpretation that leads to this]"},
@@ -683,7 +791,7 @@ ${isImageBased ? `{
     ...
   ],
   "image": "",
-  "solution": "[Step-by-step solution]"
+  "solution": "Step 1: [First step]\nStep 2: [Second step]\nStep 3: [Final step]"
 }`}
 
 CRITICAL: Each "options" array MUST contain EXACTLY ${numOptions} option objects:
@@ -703,7 +811,7 @@ Your response should look like this (example for ${numQuestions} questions):
 [${isImageBased ? `{
   "image": "A right triangle with sides labeled: base = 3 cm, height = 4 cm, hypotenuse = 5 cm.",
   "question": "What is the area of the triangle shown?",
-  "solution": "Step 1: Identify the base and height from the image. Base = 3 cm, Height = 4 cm. Step 2: Apply area formula: Area = (1/2) × base × height = (1/2) × 3 × 4 = 6 cm²",
+  "solution": "Step 1: Identify the base and height from the image. Base = 3 cm, Height = 4 cm.\nStep 2: Apply area formula: Area = (1/2) × base × height = (1/2) × 3 × 4 = 6 cm²",
   "options": [
     {"text": "6 cm²", "logic": "CA"},
     {"text": "12 cm²", "logic": "Forgot to multiply by 1/2"},
@@ -719,20 +827,24 @@ Your response should look like this (example for ${numQuestions} questions):
     {"text": "7 - 5", "logic": "Reversed the order"}
   ],
   "image": "",
-  "solution": "Step-by-step solution..."
+  "solution": "Step 1: [First step]\nStep 2: [Second step]\nStep 3: [Final step]"
 }`}, ...]
 
 CRITICAL FINAL REMINDER:
 - You MUST return EXACTLY ${numQuestions} questions in the JSON array
 - CRITICAL: Each question MUST have EXACTLY ${numOptions} options - NO MORE, NO LESS
+- CRITICAL: Each solution MUST have steps on SEPARATE LINES using \n - do NOT put multiple steps on the same line
+- CRITICAL: Solution format must be: "Step 1: ...\nStep 2: ...\nStep 3: ..." (with \n between each step)
 - Count your questions: The array must have exactly ${numQuestions} elements, no more, no less
 - Count options in EACH question: Every question must have exactly ${numOptions} options
 - Verify before submitting: Check that your JSON array contains exactly ${numQuestions} question objects
 - Verify before submitting: Check that EACH question object has exactly ${numOptions} options in its options array
+- Verify before submitting: Check that EACH solution has steps separated by \n (newline characters)
 - The array must start with [ and end with ]
 - DO NOT return fewer than ${numQuestions} questions
 - DO NOT return more than ${numQuestions} questions
 - DO NOT add extra options or remove options - the count must match exactly
+- DO NOT put multiple solution steps on the same line - each step MUST be on its own line with \n
 - ${notes && notes.length > 0 ? 'CRITICAL: Verify that ALL SME notes requirements have been followed in EVERY question' : ''}`
   }
   
@@ -848,13 +960,28 @@ CRITICAL FINAL REMINDER:
         console.warn(`Question ${idx + 1}: Options are empty or invalid. Original options:`, JSON.stringify(question.options))
       }
       
-      // Ensure correct number of options
-      let options = question.options
+      // Ensure correct number of options - CRITICAL: Always trim to numOptions first
+      let options = Array.isArray(question.options) ? question.options : []
+      
+      // Log original count for debugging
+      const originalOptionCount = options.length
+      if (originalOptionCount !== numOptions) {
+        console.warn(`Question ${idx + 1}: Received ${originalOptionCount} options, expected ${numOptions}`)
+      }
+      
+      // CRITICAL: FORCE trim to numOptions BEFORE processing to prevent overflow
+      // This is the most important safeguard - always enforce exact count
+      if (options.length > numOptions) {
+        console.warn(`Question ${idx + 1}: FORCE TRIMMING ${options.length} options down to ${numOptions}`)
+        options = options.slice(0, numOptions)
+      } else if (options.length < numOptions) {
+        console.warn(`Question ${idx + 1}: Only ${options.length} options provided, expected ${numOptions}`)
+      }
+      
+      // DOUBLE-CHECK: Ensure options array is exactly numOptions length
       if (options.length !== numOptions) {
-        if (options.length < numOptions) {
-          console.warn(`Question ${idx + 1}: Only ${options.length} options provided, expected ${numOptions}`)
-        } else {
-          console.warn(`Question ${idx + 1}: ${options.length} options provided, expected ${numOptions}, trimming`)
+        console.error(`Question ${idx + 1}: ERROR - After trimming, options.length (${options.length}) != numOptions (${numOptions}). Force correcting.`)
+        if (options.length > numOptions) {
           options = options.slice(0, numOptions)
         }
       }
@@ -863,7 +990,19 @@ CRITICAL FINAL REMINDER:
       const validOptions = []
       let hasCorrectAnswer = false
       
-      for (let optIdx = 0; optIdx < options.length; optIdx++) {
+      // CRITICAL: Only process exactly numOptions to prevent any overflow
+      // Use numOptions directly since we've already trimmed
+      const maxOptionsToProcess = Math.min(options.length, numOptions)
+      if (maxOptionsToProcess > numOptions) {
+        console.error(`Question ${idx + 1}: ERROR - maxOptionsToProcess (${maxOptionsToProcess}) > numOptions (${numOptions}). Using numOptions.`)
+      }
+      for (let optIdx = 0; optIdx < maxOptionsToProcess; optIdx++) {
+        // HARD STOP: If we already have numOptions valid options, stop processing
+        if (validOptions.length >= numOptions) {
+          console.warn(`Question ${idx + 1}: Already have ${validOptions.length} valid options (target: ${numOptions}), stopping validation loop early.`)
+          break
+        }
+        
         const option = options[optIdx]
         // Skip options without text or with empty/placeholder text
         if (!option || !option.text || typeof option.text !== 'string') {
@@ -915,6 +1054,17 @@ CRITICAL FINAL REMINDER:
           text: optionText,
           logic: optionLogic
         })
+        
+        // HARD STOP: If we've reached numOptions, stop immediately
+        if (validOptions.length >= numOptions) {
+          break
+        }
+      }
+      
+      // CRITICAL SAFEGUARD: Immediately trim validOptions if it somehow exceeds numOptions
+      if (validOptions.length > numOptions) {
+        console.error(`Question ${idx + 1}: ERROR - validOptions has ${validOptions.length} items after validation loop, but numOptions is ${numOptions}. Force trimming immediately.`)
+        validOptions.splice(numOptions, validOptions.length - numOptions) // Remove all items beyond numOptions
       }
       
       // If no valid options were found, log error and skip this question
@@ -963,29 +1113,27 @@ CRITICAL FINAL REMINDER:
         }
       }
       
-      // Trim to exact number needed
-      const finalOptions = validOptions.slice(0, numOptions)
+      // CRITICAL: Always trim to exact number needed - this is a final safeguard
+      let finalOptions = validOptions.slice(0, numOptions)
       
-      // Generate image if needed
-      let imageUrl = question.image || ''
-      if (shouldGenerateImages && imageUrl) {
-        try {
-          const generatedImage = await generateImageForQuestion(
-            question.question,
-            imageUrl
-          )
-          if (generatedImage) {
-            imageUrl = generatedImage
-          }
-        } catch (error) {
-          console.error('Error generating image:', error)
-        }
+      // Additional safeguard: Log and force trim if somehow we still have more
+      if (finalOptions.length > numOptions) {
+        console.error(`Question ${idx + 1}: ERROR - finalOptions has ${finalOptions.length} items but numOptions is ${numOptions}. Force trimming.`)
+        finalOptions = finalOptions.slice(0, numOptions)
       }
+      
+      // Final validation: Ensure we have exactly numOptions
+      if (finalOptions.length !== numOptions) {
+        console.error(`Question ${idx + 1}: WARNING - finalOptions has ${finalOptions.length} items, expected ${numOptions}`)
+      }
+      
+      // Store image description (not generating actual images)
+      const imageDescription = question.image || ''
       
       validatedQuestions.push({
         question: String(question.question).trim(),
         options: finalOptions,
-        image: imageUrl,
+        image: imageDescription, // This is now an image description, not a URL
         solution: question.solution ? String(question.solution).trim() : ''
       })
     }
