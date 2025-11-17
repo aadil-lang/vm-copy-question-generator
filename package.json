@@ -1,5 +1,5 @@
 {
-  "name": "base-question-generator",
+  "name": "vm-copy-question-generator",
   "version": "0.1.0",
   "private": true,
   "scripts": {
