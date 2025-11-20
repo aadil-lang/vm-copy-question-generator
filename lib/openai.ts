@@ -37,3 +37,49 @@ export async function generateImageForQuestion(
   }
 }
 
+export async function analyzeImageForQuestion(
+  imageBase64: string,
+  model: string = 'gpt-4o'
+): Promise<string> {
+  try {
+    const client = getOpenAIClient()
+    
+    // Ensure the image is in the correct format
+    const imageUrl = imageBase64.startsWith('data:') 
+      ? imageBase64 
+      : `data:image/jpeg;base64,${imageBase64.replace(/^data:image\/[a-z]+;base64,/, '')}`
+    
+    const response = await client.chat.completions.create({
+      model: model, // Use gpt-4o or gpt-4-turbo which support vision
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert at analyzing mathematical images. Extract all text, numbers, measurements, geometric shapes, graphs, tables, and any mathematical content from the image. Provide a detailed description that can be used to generate questions. Be precise and include all visible information.'
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Analyze this mathematical image and extract all content including:\n- All text, numbers, and labels\n- Geometric shapes and their measurements (sides, angles, etc.)\n- Graphs, coordinates, and data points\n- Tables, charts, and their values\n- Any mathematical equations or formulas visible\n- Colors, line types, and visual annotations\n- Scale, units, and reference points\n\nProvide a comprehensive description that includes all numbers, measurements, labels, and visual elements that would be needed to generate similar questions.'
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: imageUrl
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 1500,
+      temperature: 0.3
+    })
+    
+    return response.choices[0]?.message?.content || ''
+  } catch (error) {
+    console.error('Error analyzing image:', error)
+    throw error
+  }
+}
+

@@ -2,7 +2,6 @@
 
 import { useState, Suspense, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import Link from 'next/link'
 
 interface Question {
   question: string
@@ -517,12 +516,8 @@ function GeneratePageContent() {
   return (
     <div className="container">
       <header style={{ padding: '40px 30px', minHeight: '180px', position: 'relative' }}>
-        <Link href="/" className="btn btn-secondary" style={{ position: 'absolute', top: '20px', left: '30px' }}>
-          ← Back to Home
-        </Link>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', marginTop: '10px' }}>
-          <div style={{ flex: '1' }}></div>
-          <div className="logo-container" style={{ flex: '1', display: 'flex', justifyContent: 'center' }}>
+          <div className="logo-container" style={{ flex: '1', display: 'flex', justifyContent: 'flex-start' }}>
             <img
               src="https://cf.quizizz.com/practice/branding/VoyageMathPremium.png"
               alt="VM Logo"
@@ -536,7 +531,7 @@ function GeneratePageContent() {
               }}
             />
           </div>
-          <div className="wayground-container" style={{ flex: '1', display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-start', marginTop: '-48px' }}>
+          <div className="wayground-container" style={{ flex: '1', display: 'flex', justifyContent: 'flex-end' }}>
             <img
               src="https://cdn.prod.website-files.com/68355113496452bf05789e95/68480ff9c322e13a2f937a22_Logo_Dark_Primary_Horizontal_MINIMUM.svg"
               alt="Wayground Logo"

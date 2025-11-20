@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getOpenAIClient } from '@/lib/openai'
+import { getOpenAIClient, analyzeImageForQuestion } from '@/lib/openai'
 import { loadCurriculumSubskills } from '@/lib/curriculum'
 import { parseNumberOfOptions, determineQuestionType } from '@/lib/question-utils'
 
@@ -98,6 +98,32 @@ async function generateQuestionsWithGPT(
     questionType = determineQuestionType(baseQuestion, notes)
   }
   
+  // Analyze uploaded images if present and for image-based questions
+  let analyzedImageContent = ''
+  if (questionType === 'image_based' && imageFiles.length > 0) {
+    try {
+      console.log(`Analyzing ${imageFiles.length} uploaded image(s) for content extraction...`)
+      // Use a vision-capable model for analysis (gpt-4o supports vision)
+      const visionModel = model === 'gpt-4o' || model === 'gpt-4-turbo' ? model : 'gpt-4o'
+      
+      // Analyze all uploaded images
+      const analysisPromises = imageFiles.map((img: string, index: number) => {
+        console.log(`Analyzing image ${index + 1} of ${imageFiles.length}...`)
+        return analyzeImageForQuestion(img, visionModel)
+      })
+      const analyses = await Promise.all(analysisPromises)
+      analyzedImageContent = analyses
+        .map((analysis, index) => `Image ${index + 1} Analysis:\n${analysis}`)
+        .join('\n\n---\n\n')
+      
+      console.log('Image analysis completed successfully')
+    } catch (error: any) {
+      console.error('Error analyzing images:', error)
+      // Continue without analysis if it fails, but log the error
+      analyzedImageContent = `[Image analysis failed: ${error.message}. Using images as reference only.]`
+    }
+  }
+  
   // Build system prompt - TIER 1: Universal System Requirements
   const systemPrompt = `You are an expert educational content generator specializing in creating high-quality mathematical questions aligned with US curricula standards. Your primary task is to generate pedagogically sound multiple-choice questions that test specific mathematical skills and concepts while maintaining strict adherence to provided guidelines and formats.
 
@@ -184,7 +210,23 @@ Before providing your final answer, you must:
   const solutionText = solution ? `\nBase Solution: ${solution}` : ''
   const imageInfo = images ? `\nBase Question Image Description: ${images}` : ''
   const uploadedImageInfo = imageFiles.length > 0 
-    ? `\nBase Question Uploaded Images: ${imageFiles.length} image(s) uploaded. These images are provided as base64 data and should be used as reference for generating similar visual elements.`
+    ? analyzedImageContent
+      ? `\n${'='.repeat(80)}
+UPLOADED IMAGES ANALYSIS (CRITICAL - USE THIS CONTENT):
+${'='.repeat(80)}
+${analyzedImageContent}
+${'='.repeat(80)}
+
+CRITICAL INSTRUCTIONS FOR USING IMAGE ANALYSIS:
+- The above analysis contains ALL text, numbers, measurements, shapes, and visual elements extracted from the uploaded images
+- You MUST use this analyzed content to generate questions that match the structure and content of the uploaded images
+- All measurements, angles, side lengths, coordinates, and values in your generated questions should be based on or variations of the values found in the analysis
+- Maintain the same image type (triangle → triangle, graph → graph, table → table) as shown in the analysis
+- Use the same question format and structure as indicated by the analyzed content
+- DO NOT invent new visual elements that were not present in the uploaded images
+- The image analysis is the PRIMARY source of information for generating image-based questions
+${'='.repeat(80)}`
+      : `\nUPLOADED IMAGES: ${imageFiles.length} image(s) have been uploaded. These images are provided as base64 data and should be used as reference for generating similar visual elements.`
     : ''
   
   let userPrompt = ''
@@ -235,9 +277,18 @@ Before finalizing each question, verify:
 - Have I incorporated ALL requirements from SME notes into this question?
 - Does this question follow ALL constraints specified in SME notes?
 - Does this question use ALL formats/types specified in SME notes?
+- CRITICAL: If SME notes specify answer format (mixed number, improper fraction, simplified, whole number, etc.), does the CORRECT ANSWER match that format exactly?
+- CRITICAL: Have I verified that the answer marked as "CA" (Correct Answer) is in the format specified in SME notes?
 - If SME notes specify answer types/ranges/formats, does this question use them?
 - If SME notes specify scenarios/contexts, does this question incorporate them?
 - Have I followed EVERY instruction in the SME notes, not just some of them?
+- CRITICAL: Before marking any option as "CA", have I checked that it matches ALL SME notes format requirements?
+
+SPECIFIC EXAMPLES OF SME NOTES FORMAT REQUIREMENTS:
+- If SME notes say "answer should be a mixed number": The correct answer MUST be like "2 1/3" or "5 2/7", NOT "7/3" or "2.33"
+- If SME notes say "answer should be simplified": The correct answer MUST be in simplest form (e.g., "3/4" not "6/8")
+- If SME notes say "answer should be an improper fraction": The correct answer MUST be an improper fraction (e.g., "7/3" not "2 1/3")
+- If SME notes specify any other format, the correct answer MUST follow it exactly
 
 CRITICAL: These are the ONLY SME notes for this request. Do NOT use any notes from previous requests or conversations.
 ${'='.repeat(80)}\n` : '\nTIER 3: SME NOTES - None provided.\nCRITICAL: There are NO SME notes for this request. Do NOT use any notes from previous requests or conversations.\nProceed with Tiers 1 and 2 only. Ignore any notes that may have been mentioned in previous interactions.\n'}
@@ -265,10 +316,15 @@ Answer Verification (CRITICAL)
 - You MUST solve each question completely before generating options
 - Work backward from the answer to verify it satisfies all conditions
 - Check for extraneous solutions (e.g., square root problems, rational equations)
-- Ensure the answer is in the requested form (simplified, exact, decimal, fraction, etc.)
+- CRITICAL: The answer format MUST match ALL requirements specified in SME notes
+- If SME notes specify answer format (mixed number, improper fraction, simplified fraction, whole number, decimal, etc.), the correct answer MUST be in that exact format
+- If SME notes say "answer should be a mixed number", the correct answer MUST be a mixed number (e.g., "2 1/3" not "7/3" or "2.33")
+- If SME notes say "answer should be simplified", the correct answer MUST be in simplest form
+- If SME notes specify any other format requirement, the correct answer MUST follow it exactly
 - Verify units/dimensions if applicable
-- CRITICAL: Only mark an option as "CA" if you have verified it is mathematically correct by solving the problem
+- CRITICAL: Only mark an option as "CA" if you have verified it is mathematically correct AND matches all SME notes format requirements
 - Double-check your calculations - incorrect answers marked as CA will cause errors
+- CRITICAL: Before finalizing the correct answer, verify it matches the format specified in SME notes
 
 CRITICAL REQUIREMENTS FOR OPTIONS AND CORRECT ANSWERS:
 
@@ -340,9 +396,10 @@ CRITICAL REQUIREMENTS FOR OPTIONS AND CORRECT ANSWERS:
 QUALITY CHECKLIST (Self-Verify Before Finalizing):
 ✅ Format matches base question exactly
 ✅ Correct answer is mathematically verified
+✅ CRITICAL: Correct answer format matches ALL SME notes requirements (if SME notes specify format)
 ✅ Options don't follow a predictable pattern
 ✅ CRITICAL: Number of options is EXACTLY ${numOptions} - count them to verify!
-✅ CRITICAL: ALL SME notes (if provided) have been followed PRECISELY - verify each requirement
+✅ CRITICAL: ALL SME notes (if provided) have been followed PRECISELY - verify each requirement, especially answer format requirements
 ✅ CRITICAL: Solution is COMPLETE with ALL steps shown - verify no steps are skipped
 ✅ CRITICAL: Solution is formatted with each step on a new line for readability
 ✅ No mathematical errors or logical contradictions
@@ -364,13 +421,21 @@ CRITICAL FINAL REMINDER:
 - CRITICAL: Each question MUST have EXACTLY ${numOptions} options - NO MORE, NO LESS
 - CRITICAL: Each solution MUST have steps on SEPARATE LINES using \n - do NOT put multiple steps on the same line
 - CRITICAL: Solution format must be: "Step 1: ...\nStep 2: ...\nStep 3: ..." (with \n between each step)
+- CRITICAL: Verify that sentence structure EXACTLY matches the base question (same grammatical patterns, word order, and sentence complexity)
+- CRITICAL: Only change numbers, names, and context - DO NOT change sentence structure, grammatical patterns, or word order
+- CRITICAL: Before marking any option as "CA", verify that the answer format matches ALL SME notes requirements
+- CRITICAL: If SME notes specify answer format (mixed number, simplified fraction, etc.), the correct answer MUST be in that exact format
 - Count your questions: The array must have exactly ${numQuestions} elements, no more, no less
 - Count options in EACH question: Every question must have exactly ${numOptions} options
 - Verify before submitting: Check that your JSON array contains exactly ${numQuestions} question objects
 - Verify before submitting: Check that EACH question object has exactly ${numOptions} options in its options array
 - Verify before submitting: Check that EACH solution has steps separated by \n (newline characters)
+- Verify before submitting: Check that EACH question has the SAME sentence structure as the base question
+- Verify before submitting: Check that EACH correct answer (marked with "CA") matches ALL SME notes format requirements
 - DO NOT put multiple solution steps on the same line - each step MUST be on its own line with \n
-- ${notes && notes.length > 0 ? 'CRITICAL: Verify that ALL SME notes requirements have been followed in EVERY question' : ''}`
+- DO NOT change sentence structure, grammatical patterns, or word order - only change numbers, names, and context
+- DO NOT ignore SME notes format requirements - if SME notes specify a format, the correct answer MUST match it
+- ${notes && notes.length > 0 ? 'CRITICAL: Verify that ALL SME notes requirements have been followed in EVERY question, including answer format requirements' : ''}`
   } else {
     // Word Problems or Image-Based Questions
     const isImageBased = questionType === 'image_based'
@@ -441,14 +506,23 @@ Before finalizing each question, verify:
 - Have I incorporated ALL requirements from SME notes into this question?
 - Does this question follow ALL constraints specified in SME notes?
 - Does this question use ALL formats/types specified in SME notes?
+- CRITICAL: If SME notes specify answer format (mixed number, improper fraction, simplified, whole number, etc.), does the CORRECT ANSWER match that format exactly?
+- CRITICAL: Have I verified that the answer marked as "CA" (Correct Answer) is in the format specified in SME notes?
 - If SME notes specify answer types/ranges/formats, does this question use them?
 - If SME notes specify scenarios/contexts, does this question incorporate them?
 - Have I followed EVERY instruction in the SME notes, not just some of them?
+- CRITICAL: Before marking any option as "CA", have I checked that it matches ALL SME notes format requirements?
+
+SPECIFIC EXAMPLES OF SME NOTES FORMAT REQUIREMENTS:
+- If SME notes say "answer should be a mixed number": The correct answer MUST be like "2 1/3" or "5 2/7", NOT "7/3" or "2.33"
+- If SME notes say "answer should be simplified": The correct answer MUST be in simplest form (e.g., "3/4" not "6/8")
+- If SME notes say "answer should be an improper fraction": The correct answer MUST be an improper fraction (e.g., "7/3" not "2 1/3")
+- If SME notes specify any other format, the correct answer MUST follow it exactly
 
 CRITICAL: These are the ONLY SME notes for this request. Do NOT use any notes from previous requests or conversations.
 ${'='.repeat(80)}\n` : '\nTIER 3: SME NOTES - None provided.\nCRITICAL: There are NO SME notes for this request. Do NOT use any notes from previous requests or conversations.\nProceed with Tiers 1 and 2 only. Ignore any notes that may have been mentioned in previous interactions.\n'}
 
-${solution ? `Base Solution: ${solution}\n` : ''}${imageInfo ? `${imageInfo}\n` : ''}${imageFiles.length > 0 ? `\nUPLOADED IMAGES: ${imageFiles.length} image(s) have been uploaded. Use these images as reference for the visual elements, dimensions, angles, and other details needed to generate similar questions.\n` : ''}
+${solution ? `Base Solution: ${solution}\n` : ''}${imageInfo ? `${imageInfo}\n` : ''}${uploadedImageInfo}
 ${curriculum && grade ? `Curriculum: ${curriculum} | Grade: ${grade} | Difficulty: ${difficulty}` : difficulty ? `Difficulty: ${difficulty}` : ''}
 Subskills: ${subskillsText.substring(0, 200)}
 
@@ -623,13 +697,19 @@ Apply These Additional Requirements:
 
 3. Phrasing Consistency (CRITICAL - SENTENCE STRUCTURE PRESERVATION)
 - Match the base question's style (formal/conversational)
-- PRESERVE SENTENCE STRUCTURE: Maintain the EXACT same grammatical patterns, sentence complexity, and word order structure as the base question
+- ⚠️⚠️⚠️ CRITICAL: PRESERVE SENTENCE STRUCTURE ⚠️⚠️⚠️: Maintain the EXACT same grammatical patterns, sentence complexity, and word order structure as the base question
 - Keep the same sentence flow: If base question uses "A person has X and buys Y, how many...?" maintain this structure
 - Maintain parallel construction: If base uses compound sentences, use compound sentences; if simple, use simple
 - Consistent terminology: Use similar vocabulary level and mathematical language
 - Same level of detail: Match the amount of contextual information provided
 - Parallel question format: If base asks "How many...?" frame variants similarly
-- CRITICAL: The sentence structure must remain the SAME - only change the numbers, names, and context, NOT the grammatical structure
+- ⚠️⚠️⚠️ CRITICAL: The sentence structure must remain the SAME - only change the numbers, names, and context, NOT the grammatical structure ⚠️⚠️⚠️
+- DO NOT change: sentence length, clause structure, question format, verb forms, or grammatical complexity
+- DO NOT add or remove: conjunctions, prepositions, or structural elements
+- EXAMPLE: If base question is "Sarah has 5 apples. She buys 7 more. How many apples does she have now?"
+  ✅ CORRECT: "Tom has 8 books. He buys 3 more. How many books does he have now?" (same structure)
+  ❌ WRONG: "Tom bought 3 more books to add to his collection of 8 books. What is the total?" (different structure)
+  ❌ WRONG: "How many books does Tom have after buying 3 more when he started with 8?" (different structure)
 
 4. Mathematical Accuracy in Context
 - Verify all calculations produce valid, sensible answers
@@ -729,7 +809,7 @@ QUALITY CHECKLIST (Self-Verify Before Finalizing):
 ✅ Options don't follow a predictable pattern
 ✅ CRITICAL: Number of options is EXACTLY ${numOptions} - count them to verify!
 ✅ ${isImageBased ? 'Complete visual description provided for each question' : 'Scenario is different from base and realistic'}
-✅ ${isImageBased ? 'Description allows problem to be solved' : 'Phrasing style matches base question'}
+✅ ${isImageBased ? 'Description allows problem to be solved' : 'CRITICAL: Sentence structure EXACTLY matches base question (same grammatical patterns, word order, sentence complexity, and structure)'}
 ✅ ${isImageBased ? 'CRITICAL: Image type matches base question (triangle → triangles, graph → graphs, etc.)' : ''}
 ✅ ${isImageBased ? 'CRITICAL: Question format matches base question (area → area, angle → angle, etc.)' : ''}
 ✅ ${isImageBased ? 'CRITICAL: Only numerical values changed, not image structure or question type' : ''}
@@ -835,17 +915,25 @@ CRITICAL FINAL REMINDER:
 - CRITICAL: Each question MUST have EXACTLY ${numOptions} options - NO MORE, NO LESS
 - CRITICAL: Each solution MUST have steps on SEPARATE LINES using \n - do NOT put multiple steps on the same line
 - CRITICAL: Solution format must be: "Step 1: ...\nStep 2: ...\nStep 3: ..." (with \n between each step)
+${isImageBased ? '' : '- CRITICAL: Verify that sentence structure EXACTLY matches the base question (same grammatical patterns, word order, and sentence complexity)'}
+${isImageBased ? '' : '- CRITICAL: Only change numbers, names, and context - DO NOT change sentence structure, grammatical patterns, or word order'}
+- CRITICAL: Before marking any option as "CA", verify that the answer format matches ALL SME notes requirements
+- CRITICAL: If SME notes specify answer format (mixed number, simplified fraction, etc.), the correct answer MUST be in that exact format
 - Count your questions: The array must have exactly ${numQuestions} elements, no more, no less
 - Count options in EACH question: Every question must have exactly ${numOptions} options
 - Verify before submitting: Check that your JSON array contains exactly ${numQuestions} question objects
 - Verify before submitting: Check that EACH question object has exactly ${numOptions} options in its options array
 - Verify before submitting: Check that EACH solution has steps separated by \n (newline characters)
+- Verify before submitting: Check that EACH correct answer (marked with "CA") matches ALL SME notes format requirements
+${isImageBased ? '' : '- Verify before submitting: Check that EACH question has the SAME sentence structure as the base question'}
 - The array must start with [ and end with ]
 - DO NOT return fewer than ${numQuestions} questions
 - DO NOT return more than ${numQuestions} questions
 - DO NOT add extra options or remove options - the count must match exactly
 - DO NOT put multiple solution steps on the same line - each step MUST be on its own line with \n
-- ${notes && notes.length > 0 ? 'CRITICAL: Verify that ALL SME notes requirements have been followed in EVERY question' : ''}`
+- DO NOT ignore SME notes format requirements - if SME notes specify a format, the correct answer MUST match it
+${isImageBased ? '' : '- DO NOT change sentence structure, grammatical patterns, or word order - only change numbers, names, and context'}
+- ${notes && notes.length > 0 ? 'CRITICAL: Verify that ALL SME notes requirements have been followed in EVERY question, including answer format requirements' : ''}`
   }
   
   try {
@@ -870,11 +958,28 @@ CRITICAL FINAL REMINDER:
       temperature = 0.9 // Middle of 0.6-1.2 range to balance creativity with structure preservation
     }
     
+    // Check if model supports vision and we have images
+    const supportsVision = model === 'gpt-4o' || model === 'gpt-4-turbo' || model === 'gpt-4-turbo-preview'
+    const shouldIncludeImages = questionType === 'image_based' && imageFiles.length > 0 && supportsVision
+    
     const apiParams: any = {
       model: model, // Supports o3, o4-mini, gpt-5, gpt-4o
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
+        shouldIncludeImages
+          ? {
+              role: 'user',
+              content: [
+                { type: 'text', text: userPrompt },
+                ...imageFiles.map((img: string) => ({
+                  type: 'image_url',
+                  image_url: {
+                    url: img.startsWith('data:') ? img : `data:image/jpeg;base64,${img.replace(/^data:image\/[a-z]+;base64,/, '')}`
+                  }
+                }))
+              ]
+            }
+          : { role: 'user', content: userPrompt }
       ],
       max_tokens: tokensNeeded,
       temperature: temperature,
@@ -889,6 +994,24 @@ CRITICAL FINAL REMINDER:
           (error?.message?.includes('model') || error?.code === 'model_not_found')) {
         console.warn(`${model} not available, falling back to GPT-4o`)
         apiParams.model = 'gpt-4o'
+        // Update vision support check for fallback
+        const fallbackSupportsVision = apiParams.model === 'gpt-4o' || apiParams.model === 'gpt-4-turbo'
+        const fallbackShouldIncludeImages = questionType === 'image_based' && imageFiles.length > 0 && fallbackSupportsVision
+        if (fallbackShouldIncludeImages && !shouldIncludeImages) {
+          // Update message to include images if fallback model supports vision
+          apiParams.messages[1] = {
+            role: 'user',
+            content: [
+              { type: 'text', text: userPrompt },
+              ...imageFiles.map((img: string) => ({
+                type: 'image_url',
+                image_url: {
+                  url: img.startsWith('data:') ? img : `data:image/jpeg;base64,${img.replace(/^data:image\/[a-z]+;base64,/, '')}`
+                }
+              }))
+            ]
+          }
+        }
         response = await client.chat.completions.create(apiParams)
       } else {
         throw error
