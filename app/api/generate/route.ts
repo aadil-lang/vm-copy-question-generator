@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getOpenAIClient, analyzeImageForQuestion } from '@/lib/openai'
+import { getOpenAIClient } from '@/lib/openai'
+import { analyzeImageForQuestion, generateWithAI, getAIProvider } from '@/lib/ai-client'
 import { loadCurriculumSubskills } from '@/lib/curriculum'
 import { parseNumberOfOptions, determineQuestionType } from '@/lib/question-utils'
 
@@ -103,8 +104,15 @@ async function generateQuestionsWithGPT(
   if (questionType === 'image_based' && imageFiles.length > 0) {
     try {
       console.log(`Analyzing ${imageFiles.length} uploaded image(s) for content extraction...`)
-      // Use a vision-capable model for analysis (gpt-4o supports vision)
-      const visionModel = model === 'gpt-4o' || model === 'gpt-4-turbo' ? model : 'gpt-4o'
+      // Use a vision-capable model for analysis
+      const provider = getAIProvider(model)
+      let visionModel = model
+      if (provider === 'openai') {
+        visionModel = model === 'gpt-4o' || model === 'gpt-4-turbo' ? model : 'gpt-4o'
+      } else {
+        // Gemini - use the model if it supports vision, otherwise use gemini-3-pro
+        visionModel = model.startsWith('gemini-') ? model : 'gemini-3-pro'
+      }
       
       // Analyze all uploaded images
       const analysisPromises = imageFiles.map((img: string, index: number) => {
@@ -937,14 +945,16 @@ ${isImageBased ? '' : '- DO NOT change sentence structure, grammatical patterns,
   }
   
   try {
-    const client = getOpenAIClient()
-    
     // Calculate tokens needed
     const tokensPerQuestion = Math.max(500, 400 * numOptions)
     let tokensNeeded = Math.max(1500, tokensPerQuestion * numQuestions)
     tokensNeeded = Math.min(8000, tokensNeeded)
     if (numQuestions > 1) {
       tokensNeeded = Math.floor(tokensNeeded * 1.2)
+    }
+    // Increase tokens if images are included (vision responses are longer)
+    if (questionType === 'image_based' && imageFiles.length > 0) {
+      tokensNeeded = Math.min(16000, Math.floor(tokensNeeded * 1.5)) // Increase by 50% for vision
     }
     
     // Set temperature based on question type
@@ -959,72 +969,54 @@ ${isImageBased ? '' : '- DO NOT change sentence structure, grammatical patterns,
     }
     
     // Check if model supports vision and we have images
-    const supportsVision = model === 'gpt-4o' || model === 'gpt-4-turbo' || model === 'gpt-4-turbo-preview'
-    const shouldIncludeImages = questionType === 'image_based' && imageFiles.length > 0 && supportsVision
+    const provider = getAIProvider(model)
+    let supportsVision = false
+    let shouldIncludeImages = false
     
-    const apiParams: any = {
-      model: model, // Supports o3, o4-mini, gpt-5, gpt-4o
-      messages: [
-        { role: 'system', content: systemPrompt },
-        shouldIncludeImages
-          ? {
-              role: 'user',
-              content: [
-                { type: 'text', text: userPrompt },
-                ...imageFiles.map((img: string) => ({
-                  type: 'image_url',
-                  image_url: {
-                    url: img.startsWith('data:') ? img : `data:image/jpeg;base64,${img.replace(/^data:image\/[a-z]+;base64,/, '')}`
-                  }
-                }))
-              ]
-            }
-          : { role: 'user', content: userPrompt }
-      ],
-      max_tokens: tokensNeeded,
-      temperature: temperature,
+    if (provider === 'openai') {
+      supportsVision = model === 'gpt-4o' || model === 'gpt-4-turbo' || model === 'gpt-4-turbo-preview'
+    } else {
+      // Gemini models support vision
+      supportsVision = model.startsWith('gemini-')
     }
     
-    let response
+    shouldIncludeImages = questionType === 'image_based' && imageFiles.length > 0 && supportsVision
+    
+    // Use unified AI client
+    let content: string
     try {
-      response = await client.chat.completions.create(apiParams)
+      content = await generateWithAI(
+        systemPrompt,
+        userPrompt,
+        model,
+        temperature,
+        tokensNeeded,
+        shouldIncludeImages ? imageFiles : undefined
+      )
     } catch (error: any) {
-      // If model is not available, fallback to gpt-4o
-      if ((model === 'gpt-5' || model === 'o3' || model === 'o4-mini') && 
-          (error?.message?.includes('model') || error?.code === 'model_not_found')) {
-        console.warn(`${model} not available, falling back to GPT-4o`)
-        apiParams.model = 'gpt-4o'
-        // Update vision support check for fallback
-        const fallbackSupportsVision = apiParams.model === 'gpt-4o' || apiParams.model === 'gpt-4-turbo'
-        const fallbackShouldIncludeImages = questionType === 'image_based' && imageFiles.length > 0 && fallbackSupportsVision
-        if (fallbackShouldIncludeImages && !shouldIncludeImages) {
-          // Update message to include images if fallback model supports vision
-          apiParams.messages[1] = {
-            role: 'user',
-            content: [
-              { type: 'text', text: userPrompt },
-              ...imageFiles.map((img: string) => ({
-                type: 'image_url',
-                image_url: {
-                  url: img.startsWith('data:') ? img : `data:image/jpeg;base64,${img.replace(/^data:image\/[a-z]+;base64,/, '')}`
-                }
-              }))
-            ]
-          }
+      // If model is not available, fallback to gpt-4o (for OpenAI models) or gemini-3-pro (for Gemini)
+      if (error?.message?.includes('model') || error?.code === 'model_not_found') {
+        const provider = getAIProvider(model)
+        let fallbackModel = 'gpt-4o'
+        if (provider === 'gemini') {
+          fallbackModel = 'gemini-3-pro'
         }
-        response = await client.chat.completions.create(apiParams)
+        console.warn(`${model} not available, falling back to ${fallbackModel}`)
+        content = await generateWithAI(
+          systemPrompt,
+          userPrompt,
+          fallbackModel,
+          temperature,
+          tokensNeeded,
+          shouldIncludeImages ? imageFiles : undefined
+        )
       } else {
         throw error
       }
     }
     
-    if (!response.choices || response.choices.length === 0) {
-      throw new Error('GPT returned empty response')
-    }
-    
-    const content = response.choices[0].message.content
     if (!content || content.trim().length === 0) {
-      throw new Error('GPT returned empty content')
+      throw new Error('AI returned empty content')
     }
     
     // Parse JSON from response

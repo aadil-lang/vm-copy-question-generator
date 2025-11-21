@@ -901,10 +901,15 @@ function GeneratePageContent() {
                 required
                 style={{ width: '100%' }}
               >
-                <option value="o3">O3</option>
-                <option value="o4-mini">O4 Mini</option>
-                <option value="gpt-5">GPT-5</option>
-                <option value="gpt-4o">GPT-4o</option>
+                <optgroup label="OpenAI">
+                  <option value="o3">O3</option>
+                  <option value="o4-mini">O4 Mini</option>
+                  <option value="gpt-5">GPT-5</option>
+                  <option value="gpt-4o">GPT-4o</option>
+                </optgroup>
+                <optgroup label="Google Gemini">
+                  <option value="gemini-3-pro">Gemini 3 Pro</option>
+                </optgroup>
               </select>
             </div>
           </div>

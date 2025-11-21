@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 
 interface Question {
+  difficulty?: string
   question: string
   options: Array<{ text: string; logic: string }>
   image?: string
@@ -14,12 +15,12 @@ export default function BaseGeneratePage() {
   const [gradeLevel, setGradeLevel] = useState('5')
   const [domain, setDomain] = useState('Operations')
   const [subSkill, setSubSkill] = useState('')
-  const [difficultyLevel, setDifficultyLevel] = useState('Medium (Application)')
-  const [numQuestions, setNumQuestions] = useState('3')
+  const [standardCode, setStandardCode] = useState('')
   const [model, setModel] = useState('gpt-4o')
   const [loading, setLoading] = useState(false)
   const [questions, setQuestions] = useState<Question[]>([])
   const [error, setError] = useState('')
+  const [copiedQuestionIndex, setCopiedQuestionIndex] = useState<number | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,8 +39,7 @@ export default function BaseGeneratePage() {
           gradeLevel,
           domain,
           subSkill,
-          difficultyLevel,
-          numQuestions: parseInt(numQuestions, 10),
+          standardCode,
           model,
         }),
       })
@@ -56,6 +56,48 @@ export default function BaseGeneratePage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const formatQuestionForCopy = (question: Question): string => {
+    // Format: Question text with spacing, then each option on its own line (all in one cell)
+    // Format: Question text followed by spaces so options wrap to next line
+    // Each option also has spacing after it so the next option wraps to a new line
+    // This ensures each option appears on its own line when pasted into spreadsheets with word wrap
+    let text = question.question
+    
+    // Add image description below question text if it exists
+    if (question.image) {
+      text += ' '.repeat(100) // Add spacing before image description
+      text += `Image Description: ${question.image}`
+    }
+    
+    // Add multiple spaces to ensure first option wraps to next line
+    text += ' '.repeat(100) // Add 100 spaces to push first option to next line
+    
+    // Add options with logic, each with spacing after to push next option to new line
+    question.options.forEach((opt, idx) => {
+      let optionText = `${String.fromCharCode(65 + idx)}) ${opt.text}`
+      if (opt.logic === 'CA') {
+        optionText += ' (Correct Answer)'
+      } else if (opt.logic) {
+        optionText += ` (Logic: ${opt.logic})`
+      }
+      text += optionText
+      if (idx < question.options.length - 1) {
+        text += ' '.repeat(100) // Add spacing after each option (except last) to push next to new line
+      }
+    })
+    
+    return text
+  }
+
+  const copyQuestion = (index: number) => {
+    const question = questions[index]
+    const text = formatQuestionForCopy(question)
+    navigator.clipboard.writeText(text)
+    // Show green feedback
+    setCopiedQuestionIndex(index)
+    setTimeout(() => setCopiedQuestionIndex(null), 20000) // Reset after 20 seconds
   }
 
   return (
@@ -267,49 +309,20 @@ export default function BaseGeneratePage() {
                 />
               </div>
 
-              {/* Difficulty Level */}
+              {/* Standard Code */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <label style={{
                   fontSize: '0.95em',
                   color: '#333',
                   fontWeight: '500'
                 }}>
-                  Difficulty Level
-                </label>
-                <select
-                  value={difficultyLevel}
-                  onChange={(e) => setDifficultyLevel(e.target.value)}
-                  style={{
-                    padding: '12px',
-                    background: 'white',
-                    border: '1px solid #d4c1e8',
-                    borderRadius: '8px',
-                    color: '#333',
-                    fontSize: '1em',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="Easy (Recall)">Easy (Recall)</option>
-                  <option value="Medium (Application)">Medium (Application)</option>
-                  <option value="Hard (Analysis)">Hard (Analysis)</option>
-                </select>
-              </div>
-
-              {/* Number of Questions */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{
-                  fontSize: '0.95em',
-                  color: '#333',
-                  fontWeight: '500'
-                }}>
-                  Number of Questions
+                  Standard Code
                 </label>
                 <input
-                  type="number"
-                  value={numQuestions}
-                  onChange={(e) => setNumQuestions(e.target.value)}
-                  min="1"
-                  max="10"
+                  type="text"
+                  value={standardCode}
+                  onChange={(e) => setStandardCode(e.target.value)}
+                  placeholder="Enter standard code (e.g., 5.NBT.1, 7.EE.2)"
                   style={{
                     padding: '12px',
                     background: 'white',
@@ -343,10 +356,15 @@ export default function BaseGeneratePage() {
                     cursor: 'pointer'
                   }}
                 >
-                  <option value="gpt-4o">GPT-4o</option>
-                  <option value="gpt-5">GPT-5</option>
-                  <option value="o3">o3</option>
-                  <option value="o4-mini">o4-mini</option>
+                  <optgroup label="OpenAI">
+                    <option value="gpt-4o">GPT-4o</option>
+                    <option value="gpt-5">GPT-5</option>
+                    <option value="o3">o3</option>
+                    <option value="o4-mini">o4-mini</option>
+                  </optgroup>
+                  <optgroup label="Google Gemini">
+                    <option value="gemini-3-pro">Gemini 3 Pro</option>
+                  </optgroup>
                 </select>
               </div>
 
@@ -378,7 +396,7 @@ export default function BaseGeneratePage() {
                   }
                 }}
               >
-                {loading ? 'Generating...' : 'Generate Questions'}
+                 {loading ? 'Generating...' : 'Generate Questions (Easy, Medium, Hard)'}
               </button>
             </form>
           </div>
@@ -439,7 +457,41 @@ export default function BaseGeneratePage() {
                       marginBottom: '15px',
                       color: '#5a2d7a'
                     }}>
-                      Question {index + 1}
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        width: '100%'
+                      }}>
+                        <span>{question.difficulty ? `${question.difficulty} Level` : `Question ${index + 1}`}</span>
+                        <button
+                          onClick={() => copyQuestion(index)}
+                          style={{
+                            padding: '8px 16px',
+                            background: copiedQuestionIndex === index ? '#4caf50' : '#5a2d7a',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            fontSize: '0.9em',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s',
+                            whiteSpace: 'nowrap'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (copiedQuestionIndex !== index) {
+                              e.currentTarget.style.background = '#764ba2'
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (copiedQuestionIndex !== index) {
+                              e.currentTarget.style.background = '#5a2d7a'
+                            }
+                          }}
+                        >
+                          {copiedQuestionIndex === index ? '✓ Copied!' : 'Copy'}
+                        </button>
+                      </div>
                     </h3>
                     <p style={{
                       fontSize: '1em',
@@ -490,23 +542,60 @@ export default function BaseGeneratePage() {
                           lineHeight: '1.8',
                           whiteSpace: 'pre-line'
                         }}>
-                          {question.solution.split(/\n+/).map((line, idx) => {
-                            const trimmedLine = line.trim()
-                            if (!trimmedLine) return <br key={idx} />
-                            const isStep = /^(Step\s*\d+|^\d+\.|^[A-Z]\.)/i.test(trimmedLine)
-                            return (
-                              <div
-                                key={idx}
-                                style={{
-                                  marginBottom: isStep ? '8px' : '4px',
-                                  fontWeight: isStep ? '600' : '400',
-                                  color: isStep ? '#5a2d7a' : '#333'
-                                }}
-                              >
-                                {trimmedLine}
-                              </div>
-                            )
-                          })}
+                          {((): React.ReactNode => {
+                            // Handle both actual newlines and literal \n strings
+                            let solutionText = question.solution
+                            
+                            // Replace literal \n strings with actual newlines
+                            solutionText = solutionText.replace(/\\n/g, '\n')
+                            
+                            // Split by newlines
+                            const lines = solutionText.split(/\n+/)
+                            
+                            // If no newlines found, try splitting by "Step" pattern
+                            if (lines.length === 1 && solutionText.includes('Step')) {
+                              const stepMatches = solutionText.match(/(Step\s*\d+[:\-]?[^\n]*)/gi)
+                              if (stepMatches && stepMatches.length > 1) {
+                                return stepMatches.map((step, idx) => {
+                                  const trimmedStep = step.trim()
+                                  const isStep = /^(Step\s*\d+)/i.test(trimmedStep)
+                                  return (
+                                    <div
+                                      key={idx}
+                                      style={{
+                                        marginBottom: isStep ? '10px' : '4px',
+                                        fontWeight: isStep ? '600' : '400',
+                                        color: isStep ? '#5a2d7a' : '#333',
+                                        paddingLeft: isStep ? '0' : '20px'
+                                      }}
+                                    >
+                                      {trimmedStep}
+                                    </div>
+                                  )
+                                })
+                              }
+                            }
+                            
+                            // Normal processing with newlines
+                            return lines.map((line, idx) => {
+                              const trimmedLine = line.trim()
+                              if (!trimmedLine) return <br key={idx} />
+                              const isStep = /^(Step\s*\d+|^\d+\.|^[A-Z]\.)/i.test(trimmedLine)
+                              return (
+                                <div
+                                  key={idx}
+                                  style={{
+                                    marginBottom: isStep ? '10px' : '4px',
+                                    fontWeight: isStep ? '600' : '400',
+                                    color: isStep ? '#5a2d7a' : '#333',
+                                    paddingLeft: isStep ? '0' : '0'
+                                  }}
+                                >
+                                  {trimmedLine}
+                                </div>
+                              )
+                            })
+                          })()}
                         </div>
                       </div>
                     )}
@@ -572,14 +661,14 @@ export default function BaseGeneratePage() {
                 </h3>
 
                 {/* Instruction */}
-                <p style={{
-                  fontSize: '1em',
-                  color: '#666',
-                  lineHeight: '1.6',
-                  maxWidth: '400px'
-                }}>
-                  Fill out the form and click "Generate Questions" to create curriculum-aligned mathematics questions.
-                </p>
+                 <p style={{
+                   fontSize: '1em',
+                   color: '#666',
+                   lineHeight: '1.6',
+                   maxWidth: '400px'
+                 }}>
+                   Fill out the form and click "Generate Questions" to create 3 curriculum-aligned mathematics questions (Easy, Medium, Hard) with proper scaffolding.
+                 </p>
               </div>
             )}
           </div>
