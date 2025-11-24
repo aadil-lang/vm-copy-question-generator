@@ -463,12 +463,12 @@ Generate 3 high-quality, curriculum-aligned base questions with proper scaffoldi
         tokensNeeded
       )
     } catch (error: any) {
-      // If model is not available, fallback to gpt-4o (for OpenAI models) or gemini-3-pro (for Gemini)
+      // If model is not available, fallback to gpt-4o (for OpenAI models) or gemini-1.5-pro (for Gemini)
       if (error?.message?.includes('model') || error?.code === 'model_not_found') {
         const provider = getAIProvider(model)
         let fallbackModel = 'gpt-4o'
         if (provider === 'gemini') {
-          fallbackModel = 'gemini-3-pro'
+          fallbackModel = 'gemini-1.5-pro'
         }
         console.warn(`${model} not available, falling back to ${fallbackModel}`)
         content = await generateWithAI(

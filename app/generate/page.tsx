@@ -119,7 +119,7 @@ function GeneratePageContent() {
     // Default to 4 if no options detected
     return 4
   }
-
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -245,7 +245,7 @@ function GeneratePageContent() {
       // Add spacing after each option (except the last one) to push next option to new line
       if (idx < question.options.length - 1) {
         text += ' '.repeat(100) // Add 100 spaces after each option
-      }
+    }
     })
     
     return text
@@ -747,20 +747,20 @@ function GeneratePageContent() {
           
           {questionType === 'image-based' && (
             <>
-              <div className="form-group">
+            <div className="form-group">
                 <label htmlFor="images">Image Description (if any)</label>
-                <input
-                  type="text"
-                  id="images"
-                  value={images}
-                  onChange={(e) => setImages(e.target.value)}
+              <input
+                type="text"
+                id="images"
+                value={images}
+                onChange={(e) => setImages(e.target.value)}
                   placeholder="Enter image description or URLs (comma-separated)"
-                />
-              </div>
-              
-              <div className="form-group">
+              />
+            </div>
+          
+          <div className="form-group">
                 <label htmlFor="imageUpload">Upload Images</label>
-                <input
+            <input
                   type="file"
                   id="imageUpload"
                   accept="image/*"
@@ -827,7 +827,7 @@ function GeneratePageContent() {
                     ))}
                   </div>
                 )}
-              </div>
+          </div>
             </>
           )}
           
@@ -893,24 +893,25 @@ function GeneratePageContent() {
             </div>
             
             <div className="form-group" style={{ flex: '1', maxWidth: '200px' }}>
-              <label htmlFor="model">LLM Model *</label>
-              <select
-                id="model"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                required
+            <label htmlFor="model">LLM Model *</label>
+            <select
+              id="model"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              required
                 style={{ width: '100%' }}
-              >
+            >
                 <optgroup label="OpenAI">
                   <option value="o3">O3</option>
                   <option value="o4-mini">O4 Mini</option>
                   <option value="gpt-5">GPT-5</option>
-                  <option value="gpt-4o">GPT-4o</option>
+              <option value="gpt-4o">GPT-4o</option>
                 </optgroup>
                 <optgroup label="Google Gemini">
-                  <option value="gemini-3-pro">Gemini 3 Pro</option>
+                  <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                  <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                 </optgroup>
-              </select>
+            </select>
             </div>
           </div>
           
@@ -919,11 +920,11 @@ function GeneratePageContent() {
               Generate Questions
             </button>
             <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={copySelected}
-                disabled={selectedQuestions.size === 0 || loading}
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={copySelected}
+              disabled={selectedQuestions.size === 0 || loading}
                 style={{ 
                   flex: '1',
                   backgroundColor: copiedSelected ? '#28a745' : undefined,
@@ -931,14 +932,14 @@ function GeneratePageContent() {
                   borderColor: copiedSelected ? '#28a745' : undefined,
                   transition: 'all 0.3s ease'
                 }}
-              >
-                Copy Selected ({selectedQuestions.size})
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={copyAll}
-                disabled={questions.length === 0 || loading}
+            >
+              Copy Selected ({selectedQuestions.size})
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={copyAll}
+              disabled={questions.length === 0 || loading}
                 style={{ 
                   flex: '1',
                   backgroundColor: copiedAll ? '#28a745' : undefined,
@@ -946,9 +947,9 @@ function GeneratePageContent() {
                   borderColor: copiedAll ? '#28a745' : undefined,
                   transition: 'all 0.3s ease'
                 }}
-              >
-                Copy All Questions
-              </button>
+            >
+              Copy All Questions
+            </button>
             </div>
           </div>
         </form>

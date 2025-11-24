@@ -110,8 +110,8 @@ async function generateQuestionsWithGPT(
       if (provider === 'openai') {
         visionModel = model === 'gpt-4o' || model === 'gpt-4-turbo' ? model : 'gpt-4o'
       } else {
-        // Gemini - use the model if it supports vision, otherwise use gemini-3-pro
-        visionModel = model.startsWith('gemini-') ? model : 'gemini-3-pro'
+        // Gemini - use the model if it supports vision, otherwise use gemini-1.5-pro
+        visionModel = model.startsWith('gemini-') ? model : 'gemini-1.5-pro'
       }
       
       // Analyze all uploaded images
@@ -549,11 +549,34 @@ Apply These Additional Requirements:
 
 2. Image Description Format
 Structure your descriptions clearly using this template:
-"The image shows [type of visual: graph/triangle/table/etc.].
-[Describe main elements with labels].
-[List given measurements/values].
-[Note special markings or annotations].
-[State what needs to be found, indicated by variable or question mark]."
+
+FOR TABLES, DOT PLOTS, LINE PLOTS, BAR CHARTS, and other structured data:
+- Present data in a clear tabular format using markdown table syntax:
+  Example for a table:
+  "The image shows a data table:
+  | Category | Value | Percentage |
+  |----------|-------|------------|
+  | A        | 25    | 25%        |
+  | B        | 30    | 30%        |
+  | C        | 45    | 45%        |"
+
+  Example for a dot plot or line plot:
+  "The image shows a line graph with the following data points:
+  | x | y | Label |
+  |---|---|-------|
+  | 0 | 2 | Start |
+  | 1 | 4 |       |
+  | 2 | 6 |       |
+  | 3 | 8 | End   |
+  The graph has x-axis labeled 'Time (hours)' and y-axis labeled 'Distance (miles)'."
+
+FOR GEOMETRIC SHAPES, DIAGRAMS, and non-tabular visuals:
+- Use descriptive text format:
+  "The image shows [type of visual: graph/triangle/table/etc.].
+  [Describe main elements with labels].
+  [List given measurements/values].
+  [Note special markings or annotations].
+  [State what needs to be found, indicated by variable or question mark]."
 
 3. Mathematical Correctness Verification (CRITICAL - MUST VERIFY BEFORE DESCRIBING)
 BEFORE writing any image description, you MUST verify that all measurements and relationships are mathematically correct:
@@ -994,12 +1017,12 @@ ${isImageBased ? '' : '- DO NOT change sentence structure, grammatical patterns,
         shouldIncludeImages ? imageFiles : undefined
       )
     } catch (error: any) {
-      // If model is not available, fallback to gpt-4o (for OpenAI models) or gemini-3-pro (for Gemini)
+      // If model is not available, fallback to gpt-4o (for OpenAI models) or gemini-1.5-pro (for Gemini)
       if (error?.message?.includes('model') || error?.code === 'model_not_found') {
         const provider = getAIProvider(model)
         let fallbackModel = 'gpt-4o'
         if (provider === 'gemini') {
-          fallbackModel = 'gemini-3-pro'
+          fallbackModel = 'gemini-1.5-pro'
         }
         console.warn(`${model} not available, falling back to ${fallbackModel}`)
         content = await generateWithAI(
@@ -1035,13 +1058,99 @@ ${isImageBased ? '' : '- DO NOT change sentence structure, grammatical patterns,
     }
     
     const jsonContent = cleanedContent.substring(firstBracket, lastBracket + 1)
+    
+    // Sanitize JSON: Escape unescaped control characters in string values
+    // This fixes issues where AI includes literal newlines, tabs, etc. instead of escaped versions
+    let sanitizedJson = jsonContent
+    try {
+      // More robust approach: process character by character to handle escaped sequences correctly
+      let result = ''
+      let inString = false
+      let escapeNext = false
+      
+      for (let i = 0; i < jsonContent.length; i++) {
+        const char = jsonContent[i]
+        
+        if (escapeNext) {
+          result += char
+          escapeNext = false
+          continue
+        }
+        
+        if (char === '\\') {
+          result += char
+          escapeNext = true
+          continue
+        }
+        
+        if (char === '"') {
+          // Check if this quote is escaped by counting backslashes
+          let backslashCount = 0
+          for (let j = i - 1; j >= 0 && jsonContent[j] === '\\'; j--) {
+            backslashCount++
+          }
+          // If even number of backslashes (or zero), the quote is not escaped
+          if (backslashCount % 2 === 0) {
+            inString = !inString
+          }
+          result += char
+          continue
+        }
+        
+        if (inString) {
+          // We're inside a string value - escape control characters
+          if (char === '\n') {
+            result += '\\n'
+          } else if (char === '\r') {
+            result += '\\r'
+          } else if (char === '\t') {
+            result += '\\t'
+          } else if (char === '\f') {
+            result += '\\f'
+          } else if (char === '\b') {
+            result += '\\b'
+          } else if (char.charCodeAt(0) < 0x20 || char.charCodeAt(0) === 0x7F) {
+            // Other control characters - remove them
+            continue
+          } else {
+            result += char
+          }
+        } else {
+          result += char
+        }
+      }
+      
+      sanitizedJson = result
+    } catch (sanitizeError) {
+      console.warn('JSON sanitization failed, attempting parse with original:', sanitizeError)
+      sanitizedJson = jsonContent
+    }
+    
     let parsed
     try {
-      parsed = JSON.parse(jsonContent)
+      parsed = JSON.parse(sanitizedJson)
     } catch (parseError: any) {
       console.error('JSON parse error:', parseError.message)
-      console.error('JSON content preview:', jsonContent.substring(0, 500))
-      throw new Error(`Failed to parse JSON response: ${parseError.message}. The AI response may be malformed.`)
+      console.error('Sanitized JSON preview:', sanitizedJson.substring(0, 500))
+      console.error('Original JSON preview:', jsonContent.substring(0, 500))
+      
+      // Try one more time with more aggressive sanitization
+      try {
+        // Remove or escape any remaining control characters
+        const aggressiveSanitized = sanitizedJson.replace(/[\x00-\x1F\x7F]/g, (char) => {
+          const code = char.charCodeAt(0)
+          if (code === 0x0A) return '\\n'  // \n
+          if (code === 0x0D) return '\\r'  // \r
+          if (code === 0x09) return '\\t'  // \t
+          if (code === 0x0C) return '\\f'  // \f
+          if (code === 0x08) return '\\b'  // \b
+          return '' // Remove other control characters
+        })
+        parsed = JSON.parse(aggressiveSanitized)
+        console.log('Successfully parsed after aggressive sanitization')
+      } catch (retryError: any) {
+        throw new Error(`Failed to parse JSON response: ${parseError.message}. The AI response may be malformed.`)
+      }
     }
     
     if (!Array.isArray(parsed)) {

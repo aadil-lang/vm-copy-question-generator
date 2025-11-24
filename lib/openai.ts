@@ -61,7 +61,36 @@ export async function analyzeImageForQuestion(
           content: [
             {
               type: 'text',
-              text: 'Analyze this mathematical image and extract all content including:\n- All text, numbers, and labels\n- Geometric shapes and their measurements (sides, angles, etc.)\n- Graphs, coordinates, and data points\n- Tables, charts, and their values\n- Any mathematical equations or formulas visible\n- Colors, line types, and visual annotations\n- Scale, units, and reference points\n\nProvide a comprehensive description that includes all numbers, measurements, labels, and visual elements that would be needed to generate similar questions.'
+              text: `Analyze this mathematical image and extract all content including:
+- All text, numbers, and labels
+- Geometric shapes and their measurements (sides, angles, etc.)
+- Graphs, coordinates, and data points
+- Tables, charts, and their values
+- Any mathematical equations or formulas visible
+- Colors, line types, and visual annotations
+- Scale, units, and reference points
+
+IMPORTANT FOR STRUCTURED DATA:
+- If the image contains a TABLE: Present the data in a clear tabular format with rows and columns
+- If the image contains a DOT PLOT or LINE PLOT: Extract the data points and present them in a table format with columns for x-values, y-values, and any labels
+- If the image contains a BAR CHART or HISTOGRAM: Present the data in a table format with categories and values
+- For tables: Use a format like:
+  Table:
+  | Column1 | Column2 | Column3 |
+  |---------|---------|---------|
+  | Value1  | Value2  | Value3   |
+  | Value4  | Value5  | Value6   |
+
+- For plots with data points: Use a format like:
+  Data Points:
+  | x | y | Label |
+  |---|---|-------|
+  | 1 | 2 | Point A |
+  | 3 | 4 | Point B |
+
+- For other visual elements (geometric shapes, graphs without tables): Use descriptive text format
+
+Provide a comprehensive description that includes all numbers, measurements, labels, and visual elements that would be needed to generate similar questions.`
             },
             {
               type: 'image_url',
@@ -72,7 +101,7 @@ export async function analyzeImageForQuestion(
           ]
         }
       ],
-      max_tokens: 1500,
+      max_tokens: 2000, // Increased to accommodate tabular data
       temperature: 0.3
     })
     

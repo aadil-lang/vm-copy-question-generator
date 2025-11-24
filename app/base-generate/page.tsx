@@ -363,7 +363,8 @@ export default function BaseGeneratePage() {
                     <option value="o4-mini">o4-mini</option>
                   </optgroup>
                   <optgroup label="Google Gemini">
-                    <option value="gemini-3-pro">Gemini 3 Pro</option>
+                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                    <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                   </optgroup>
                 </select>
               </div>
