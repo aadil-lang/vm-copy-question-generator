@@ -10,6 +10,8 @@ interface Question {
   solution?: string
   difficultyReasoning?: string
   scaffoldingExplanation?: string
+  setNumber?: number
+  referenceLinks?: Array<{ platform: string; url: string; label: string; description?: string }>
 }
 
 export default function BaseGeneratePage() {
@@ -25,8 +27,8 @@ export default function BaseGeneratePage() {
   const [questions, setQuestions] = useState<Question[]>([])
   const [error, setError] = useState('')
   const [copiedQuestionIndex, setCopiedQuestionIndex] = useState<number | null>(null)
-  const [showSolutionsByDefault, setShowSolutionsByDefault] = useState('hidden')
   const [visibleSolutions, setVisibleSolutions] = useState<Set<number>>(new Set())
+  const [visibleScaffolding, setVisibleScaffolding] = useState<Set<number>>(new Set())
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,12 +63,10 @@ export default function BaseGeneratePage() {
       const generatedQuestions = data.questions || []
       setQuestions(generatedQuestions)
       
-      // Initialize visible solutions based on default setting
-      if (showSolutionsByDefault === 'visible') {
-        setVisibleSolutions(new Set(generatedQuestions.map((_: Question, index: number) => index)))
-      } else {
-        setVisibleSolutions(new Set())
-      }
+      // Always start with solutions hidden
+      setVisibleSolutions(new Set())
+      // Always start with scaffolding details hidden
+      setVisibleScaffolding(new Set())
     } catch (err: any) {
       setError(err.message || 'An error occurred while generating questions')
     } finally {
@@ -76,6 +76,18 @@ export default function BaseGeneratePage() {
 
   const toggleSolution = (index: number) => {
     setVisibleSolutions(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(index)) {
+        newSet.delete(index)
+      } else {
+        newSet.add(index)
+      }
+      return newSet
+    })
+  }
+
+  const toggleScaffolding = (index: number) => {
+    setVisibleScaffolding(prev => {
       const newSet = new Set(prev)
       if (newSet.has(index)) {
         newSet.delete(index)
@@ -454,33 +466,6 @@ export default function BaseGeneratePage() {
                 </select>
               </div>
 
-              {/* Solution Visibility */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{
-                  fontSize: '0.95em',
-                  color: '#333',
-                  fontWeight: '500'
-                }}>
-                  Solution Visibility
-                </label>
-                <select
-                  value={showSolutionsByDefault}
-                  onChange={(e) => setShowSolutionsByDefault(e.target.value)}
-                  style={{
-                    padding: '12px',
-                    background: 'white',
-                    border: '1px solid #d4c1e8',
-                    borderRadius: '8px',
-                    color: '#333',
-                    fontSize: '1em',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="hidden">Hidden by default (use View solution button)</option>
-                  <option value="visible">Visible by default</option>
-                </select>
-              </div>
-
               {/* Generate Questions Button */}
               <button
                 type="submit"
@@ -557,13 +542,48 @@ export default function BaseGeneratePage() {
               </div>
             ) : questions.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {questions.map((question, index) => (
-                  <div key={index} style={{
-                    background: '#f9f9f9',
-                    borderRadius: '8px',
-                    padding: '20px',
-                    border: '1px solid #e0e0e0'
-                  }}>
+                {(() => {
+                  // Group questions by set number
+                  const setGroups: Record<number, { questions: Question[], startIndex: number }> = {}
+                  questions.forEach((question, index) => {
+                    const setNum = question.setNumber || Math.floor(index / 3) + 1
+                    if (!setGroups[setNum]) {
+                      setGroups[setNum] = { questions: [], startIndex: index }
+                    }
+                    setGroups[setNum].questions.push(question)
+                  })
+                  
+                  const totalSets = Object.keys(setGroups).length
+                  return Object.entries(setGroups).map(([setKey, { questions: setQuestions, startIndex }]) => {
+                    const setNum = parseInt(setKey)
+                    return (
+                      <div key={`set-${setNum}`} style={{ marginBottom: '40px' }}>
+                        {totalSets > 1 && (
+                          <h2 style={{
+                            fontSize: '1.4em',
+                            fontWeight: '600',
+                            color: '#5a2d7a',
+                            marginBottom: '20px',
+                            paddingBottom: '10px',
+                            borderBottom: '3px solid #5a2d7a',
+                            padding: '15px 0',
+                            backgroundColor: '#f5f0fa',
+                            paddingLeft: '15px',
+                            borderRadius: '8px 8px 0 0'
+                          }}>
+                            Set {setNum}
+                          </h2>
+                        )}
+                        {setQuestions.map((question, setIndex) => {
+                          const globalIndex = startIndex + setIndex
+                          return (
+                            <div key={globalIndex} style={{
+                              background: '#f9f9f9',
+                              borderRadius: '8px',
+                              padding: '20px',
+                              border: '1px solid #e0e0e0',
+                              marginBottom: '20px'
+                            }}>
                     <h3 style={{
                       fontSize: '1.2em',
                       fontWeight: '600',
@@ -576,12 +596,12 @@ export default function BaseGeneratePage() {
                         alignItems: 'center',
                         width: '100%'
                       }}>
-                        <span>{question.difficulty ? `${question.difficulty} Level` : `Question ${index + 1}`}</span>
+                        <span>{question.difficulty ? `${question.difficulty} Level` : `Question ${globalIndex + 1}`}</span>
                         <button
-                          onClick={() => copyQuestion(index)}
+                          onClick={() => copyQuestion(globalIndex)}
                           style={{
                             padding: '8px 16px',
-                            background: copiedQuestionIndex === index ? '#4caf50' : '#5a2d7a',
+                            background: copiedQuestionIndex === globalIndex ? '#4caf50' : '#5a2d7a',
                             color: 'white',
                             border: 'none',
                             borderRadius: '6px',
@@ -592,21 +612,52 @@ export default function BaseGeneratePage() {
                             whiteSpace: 'nowrap'
                           }}
                           onMouseEnter={(e) => {
-                            if (copiedQuestionIndex !== index) {
+                            if (copiedQuestionIndex !== globalIndex) {
                               e.currentTarget.style.background = '#764ba2'
                             }
                           }}
                           onMouseLeave={(e) => {
-                            if (copiedQuestionIndex !== index) {
+                            if (copiedQuestionIndex !== globalIndex) {
                               e.currentTarget.style.background = '#5a2d7a'
                             }
                           }}
                         >
-                          {copiedQuestionIndex === index ? '✓ Copied!' : 'Copy'}
+                          {copiedQuestionIndex === globalIndex ? '✓ Copied!' : 'Copy'}
                         </button>
                       </div>
                     </h3>
-                    {question.difficultyReasoning && (
+                    {(question.difficultyReasoning || question.scaffoldingExplanation) && (
+                      <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'flex-start' }}>
+                        <button
+                          onClick={() => toggleScaffolding(globalIndex)}
+                          style={{
+                            padding: '8px 16px',
+                            background: visibleScaffolding.has(globalIndex) ? '#ff9800' : '#5a2d7a',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            fontSize: '0.9em',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s',
+                            whiteSpace: 'nowrap'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!visibleScaffolding.has(globalIndex)) {
+                              e.currentTarget.style.background = '#764ba2'
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!visibleScaffolding.has(globalIndex)) {
+                              e.currentTarget.style.background = '#5a2d7a'
+                            }
+                          }}
+                        >
+                          {visibleScaffolding.has(globalIndex) ? 'Hide scaffolding details' : 'View scaffolding details'}
+                        </button>
+                      </div>
+                    )}
+                    {visibleScaffolding.has(globalIndex) && question.difficultyReasoning && (
                       <div style={{
                         marginBottom: '15px',
                         padding: '12px',
@@ -627,7 +678,7 @@ export default function BaseGeneratePage() {
                         </p>
                       </div>
                     )}
-                    {question.scaffoldingExplanation && (
+                    {visibleScaffolding.has(globalIndex) && question.scaffoldingExplanation && (
                       <div style={{
                         marginBottom: '15px',
                         padding: '12px',
@@ -686,10 +737,10 @@ export default function BaseGeneratePage() {
                     {question.solution && (
                       <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'flex-start' }}>
                         <button
-                          onClick={() => toggleSolution(index)}
+                          onClick={() => toggleSolution(globalIndex)}
                           style={{
                             padding: '8px 16px',
-                            background: visibleSolutions.has(index) ? '#ff9800' : '#5a2d7a',
+                            background: visibleSolutions.has(globalIndex) ? '#ff9800' : '#5a2d7a',
                             color: 'white',
                             border: 'none',
                             borderRadius: '6px',
@@ -700,21 +751,21 @@ export default function BaseGeneratePage() {
                             whiteSpace: 'nowrap'
                           }}
                           onMouseEnter={(e) => {
-                            if (!visibleSolutions.has(index)) {
+                            if (!visibleSolutions.has(globalIndex)) {
                               e.currentTarget.style.background = '#764ba2'
                             }
                           }}
                           onMouseLeave={(e) => {
-                            if (!visibleSolutions.has(index)) {
+                            if (!visibleSolutions.has(globalIndex)) {
                               e.currentTarget.style.background = '#5a2d7a'
                             }
                           }}
                         >
-                          {visibleSolutions.has(index) ? 'Hide solution' : 'View solution'}
+                          {visibleSolutions.has(globalIndex) ? 'Hide solution' : 'View solution'}
                         </button>
                       </div>
                     )}
-                    {question.solution && visibleSolutions.has(index) && (
+                    {question.solution && visibleSolutions.has(globalIndex) && (
                       <div style={{
                         marginTop: '15px',
                         padding: '15px',
@@ -785,8 +836,111 @@ export default function BaseGeneratePage() {
                         </div>
                       </div>
                     )}
-                  </div>
-                ))}
+                    
+                    {/* Reference Links Section - AI Generated */}
+                    {question.referenceLinks && question.referenceLinks.length > 0 && (
+                      <div style={{
+                        marginTop: '20px',
+                        padding: '15px',
+                        background: '#f8f9fa',
+                        borderRadius: '8px',
+                        border: '1px solid #dee2e6'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          marginBottom: '12px'
+                        }}>
+                          <span style={{ fontSize: '1.2em' }}>📚</span>
+                          <strong style={{ 
+                            color: '#333', 
+                            fontSize: '0.95em',
+                            fontWeight: '600'
+                          }}>
+                            Helpful Resources & Practice Exercises
+                          </strong>
+                        </div>
+                        <ul style={{
+                          listStyle: 'none',
+                          padding: 0,
+                          margin: 0,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '10px'
+                        }}>
+                          {question.referenceLinks.map((link, linkIndex) => {
+                            // Map platform names to colors and icons
+                            const platformStyles: Record<string, { color: string; icon: string }> = {
+                              'IXL': { color: '#5a2d7a', icon: '📚' },
+                              'Khan Academy': { color: '#14a96d', icon: '🎓' },
+                              'Big Ideas Math': { color: '#0066cc', icon: '📖' }
+                            };
+                            const style = platformStyles[link.platform] || { color: '#666', icon: '🔗' };
+                            
+                            return (
+                              <li key={linkIndex} style={{ marginBottom: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                  <span style={{ fontSize: '1em', marginTop: '2px' }}>{style.icon}</span>
+                                  <div style={{ flex: 1 }}>
+                                    <a
+                                      href={link.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{
+                                        color: style.color,
+                                        textDecoration: 'underline',
+                                        fontSize: '0.9em',
+                                        lineHeight: '1.5',
+                                        display: 'inline-block',
+                                        marginRight: '4px'
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.opacity = '0.8';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.opacity = '1';
+                                      }}
+                                    >
+                                      {link.label}: {link.url}
+                                    </a>
+                                    <span style={{
+                                      fontSize: '0.75em',
+                                      color: '#666',
+                                      backgroundColor: '#e9ecef',
+                                      padding: '2px 6px',
+                                      borderRadius: '3px',
+                                      marginLeft: '6px',
+                                      fontWeight: '500'
+                                    }}>
+                                      {link.platform}
+                                    </span>
+                                    {link.description && (
+                                      <div style={{
+                                        fontSize: '0.85em',
+                                        color: '#666',
+                                        marginTop: '4px',
+                                        fontStyle: 'italic',
+                                        paddingLeft: '24px'
+                                      }}>
+                                        {link.description}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })
+                })()}
               </div>
             ) : (
               <div style={{
