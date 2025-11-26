@@ -202,6 +202,30 @@ TIER 1: Universal System Requirements (Always Apply)
 - Solutions must show ALL steps and calculations
 - Solutions must be formatted with each step on a new line using \\n
 
+1.7 Target Audience Consideration (CRITICAL)
+- These questions are designed for students who struggle in mathematics
+- All questions, solutions, and recommendations must be appropriate for struggling learners
+- Use clear, simple language appropriate for ${gradeDisplay} reading level
+- Avoid unnecessarily complex vocabulary or sentence structures
+- Provide scaffolding and support through clear instructions and step-by-step solutions
+- When recommending copy questions, prioritize accessibility and gradual complexity increase
+
+1.8 Variation Instructions in Notes (CRITICAL)
+- If the Notes section specifies variations within a difficulty level, you MUST parse and follow those variations exactly
+- Examples of variation instructions:
+  * "Easy: 2 questions, 1 on addition and 1 on subtraction"
+  * "Medium will have 2 questions: one on multiplication and one on division"
+  * "Hard: 3 questions, 1 on fractions, 1 on decimals, 1 on percentages"
+- When variations are specified:
+  * Generate the exact number of questions for each variation
+  * Ensure each question clearly targets the specific variation mentioned
+  * Apply variations consistently across all sets if multiple sets are requested
+  * The total question count per set should match the sum of all variations specified
+- If Notes say "Easy: 2 questions, 1 on addition and 1 on subtraction" and 2 sets are requested:
+  * Set 1: 1 Easy (addition), 1 Easy (subtraction), then Medium and Hard
+  * Set 2: 1 Easy (addition), 1 Easy (subtraction), then Medium and Hard
+- Variations take precedence over default question distribution
+
 TIER 2: Standard Code and Curriculum Alignment
 
 ${standardCode ? `
@@ -332,7 +356,7 @@ REFERENCE LINK FORMAT REQUIREMENTS:
 Curriculum Standards: ${stateStandards}
 Grade Level: ${gradeDisplay}
 Relevant Subskills: ${subskillsText}
-${notes ? `\n\n⚠️ CRITICAL: ADDITIONAL NOTES/INSTRUCTIONS (MANDATORY):\n${notes}\n\nIMPORTANT: The instructions above in the "Additional Notes/Instructions" section are MANDATORY and must be strictly followed when generating all ${totalQuestions} questions. These notes take precedence and should guide your question generation process. Ensure that every aspect mentioned in the notes is incorporated into the generated questions.\n` : ''}
+${notes ? `\n\n⚠️ CRITICAL: ADDITIONAL NOTES/INSTRUCTIONS (MANDATORY):\n${notes}\n\nIMPORTANT: The instructions above in the "Additional Notes/Instructions" section are MANDATORY and must be strictly followed when generating all ${totalQuestions} questions. These notes take precedence and should guide your question generation process. Ensure that every aspect mentioned in the notes is incorporated into the generated questions.\n\nVARIATION INSTRUCTIONS IN NOTES (CRITICAL):\nIf the Notes section specifies variations within a difficulty level (e.g., "Easy will have 2 questions: 1 on addition and 1 on subtraction", "Medium: 2 questions, one on multiplication and one on division"), you MUST:\n1. Parse and understand the variation requirements for each difficulty level\n2. Generate the exact number of questions specified for each variation\n3. Ensure each question clearly targets the specific variation mentioned\n4. Apply these variations consistently across all sets if multiple sets are requested\n\nExample: If Notes say "Easy: 2 questions, 1 on addition and 1 on subtraction" and 2 sets are requested, generate:\n- Set 1: 1 Easy question on addition, 1 Easy question on subtraction\n- Set 2: 1 Easy question on addition, 1 Easy question on subtraction\n- Then continue with Medium and Hard questions as specified\n\nIf variations are specified, the total question count should match: (number of variations per difficulty) × (number of sets). Ensure all variations are covered within each set.\n` : ''}
 ${setOfQuestions ? `Set(s) of Questions: ${setOfQuestions} (1 set = 1 Easy + 1 Medium + 1 Hard, so ${setOfQuestions} set(s) = ${questionCounts.easy} Easy + ${questionCounts.medium} Medium + ${questionCounts.hard} Hard)\n` : ''}
 
 CRITICAL REQUIREMENTS FOR OPTIONS AND CORRECT ANSWERS:
@@ -469,7 +493,7 @@ You MUST return a valid JSON array containing exactly ${totalQuestions} question
     "image": "",
     "solution": "Step 1: [Identify what is being asked - detailed explanation]\\nStep 2: [Identify given information - list all values]\\nStep 3: [Determine approach/formula - explain why]\\nStep 4: [Write formula and substitute values - show all substitutions]\\nStep 5: [Perform calculations step by step - show all arithmetic]\\nStep 6: [Simplify result - show simplifications]\\nStep 7: [State final answer with verification]",
     "difficultyReasoning": "This question is Easy because it requires basic understanding of [concept], involves single-step or simple two-step calculation, and tests direct recall of fundamental principles without requiring complex reasoning or multi-step problem-solving.",
-    "scaffoldingExplanation": "This Easy question establishes the foundation by introducing [concept] in its simplest form. It prepares students for the Medium question by ensuring they understand [prerequisite skill] and can perform basic operations with [concept].",
+    "scaffoldingExplanation": "This Easy question establishes the foundation by introducing [concept] in its simplest form. It prepares students for the Medium question by ensuring they understand [prerequisite skill] and can perform basic operations with [concept].\\n\\nCOPY QUESTION RECOMMENDATIONS FOR STRUGGLING ${gradeDisplay} STUDENTS (11 Easy copy questions):\\n[Specific recommendations tailored for struggling students, e.g., 'Use numbers 10-30', 'Use single-digit values only', 'Use simple fractions like 1/2, 1/3, 1/4 with like denominators', 'Keep vocabulary simple and age-appropriate for ${gradeDisplay}']. Provide specific parameter ranges/values, complexity limits, and examples of what to vary. Ensure all recommendations are appropriate for struggling ${gradeDisplay} students and account for reading level.",
     "referenceLinks": [
       {"platform": "IXL", "url": "https://www.ixl.com/math/grade-X/skill-slug-from-subskill-keywords", "label": "IXL Learning — [subskill keywords] lessons under [grade] grade math", "description": "Practice exercises based on standard code ${standardCode || 'and grade level'}"},
       {"platform": "Khan Academy", "url": "https://www.khanacademy.org/math/grade-path/topic-from-subskill-keywords", "label": "Khan Academy — [subskill keywords] tutorials and practice", "description": "Tutorials aligned to ${standardCode || 'curriculum standards'} for [subskill keywords]"},
@@ -488,7 +512,7 @@ You MUST return a valid JSON array containing exactly ${totalQuestions} question
     "image": "",
     "solution": "Step 1: [Identify what is being asked - detailed explanation]\\nStep 2: [Identify given information - list all values and conditions]\\nStep 3: [Determine approach/formula - explain which method and why]\\nStep 4: [Write formula and substitute values - show all substitutions explicitly]\\nStep 5: [Perform intermediate calculations - show each operation]\\nStep 6: [Continue calculations - show next set of operations]\\nStep 7: [Simplify result - show all simplifications]\\nStep 8: [Verify answer - check if it makes sense]\\nStep 9: [State final answer with appropriate units]",
     "difficultyReasoning": "This question is Medium because it requires understanding of relationships and connections, involves 2-3 steps or combining concepts, and demands moderate complexity in reasoning while building on the foundational knowledge from the Easy question.",
-    "scaffoldingExplanation": "This Medium question builds on the Easy question by [specific progression]. It extends the concept by [how it builds], requiring students to [what additional skills/thinking]. This prepares students for the Hard question by introducing [intermediate complexity element].",
+    "scaffoldingExplanation": "This Medium question builds on the Easy question by [specific progression]. It extends the concept by [how it builds], requiring students to [what additional skills/thinking]. This prepares students for the Hard question by introducing [intermediate complexity element].\\n\\nCOPY QUESTION RECOMMENDATIONS FOR STRUGGLING ${gradeDisplay} STUDENTS (11 Medium copy questions):\\n[Recommendations for medium variations matching this base question's complexity, e.g., 'Maintain 2-3 step complexity', 'Use numbers appropriate for struggling ${gradeDisplay} students', 'Keep language clear and simple']. Provide specific parameter ranges/values, complexity limits, and examples of what to vary. Ensure all recommendations are appropriate for struggling ${gradeDisplay} students and account for reading level.",
     "referenceLinks": [
       {"platform": "IXL", "url": "https://www.ixl.com/math/grade-X/skill-slug-from-subskill-keywords", "label": "IXL Learning — [subskill keywords] lessons under [grade] grade math", "description": "Practice exercises based on standard code ${standardCode || 'and grade level'}"},
       {"platform": "Khan Academy", "url": "https://www.khanacademy.org/math/grade-path/topic-from-subskill-keywords", "label": "Khan Academy — [subskill keywords] tutorials and practice", "description": "Tutorials aligned to ${standardCode || 'curriculum standards'} for [subskill keywords]"},
@@ -507,7 +531,7 @@ You MUST return a valid JSON array containing exactly ${totalQuestions} question
     "image": "",
     "solution": "Step 1: [Identify what is being asked - comprehensive explanation]\\nStep 2: [Identify given information - list all values, conditions, and constraints]\\nStep 3: [Determine approach/strategy - explain the multi-step plan]\\nStep 4: [Write first formula/equation - show complete formula]\\nStep 5: [Substitute values into first formula - show all substitutions]\\nStep 6: [Perform first set of calculations - show all arithmetic operations]\\nStep 7: [Write second formula/equation if needed - show complete formula]\\nStep 8: [Substitute intermediate results - show how values are used]\\nStep 9: [Perform second set of calculations - show all operations]\\nStep 10: [Continue with additional steps if needed - show all work]\\nStep 11: [Simplify final result - show all simplifications and reductions]\\nStep 12: [Verify answer - check against conditions and reasonableness]\\nStep 13: [State final answer with complete interpretation]",
     "difficultyReasoning": "This question is Hard because it requires complex reasoning, multi-step problem-solving, synthesis of multiple concepts, and demands higher-order thinking skills. It challenges students to integrate knowledge from the Easy and Medium questions while applying it to a more complex scenario.",
-    "scaffoldingExplanation": "This Hard question synthesizes the concepts from both the Easy and Medium questions by [specific synthesis]. It requires students to [what complex thinking], building on the foundational skills from Easy and the intermediate skills from Medium. This question represents the culmination of the learning progression, testing students' ability to [final assessment goal].",
+    "scaffoldingExplanation": "This Hard question synthesizes the concepts from both the Easy and Medium questions by [specific synthesis]. It requires students to [what complex thinking], building on the foundational skills from Easy and the intermediate skills from Medium. This question represents the culmination of the learning progression, testing students' ability to [final assessment goal].\\n\\nCOPY QUESTION RECOMMENDATIONS FOR STRUGGLING ${gradeDisplay} STUDENTS (6 Hard copy questions):\\n[Recommendations for hard variations that maintain this level of complexity but vary the specific numbers/scenarios, e.g., 'Maintain multi-step complexity', 'Vary numbers within appropriate ranges for struggling ${gradeDisplay} students', 'Keep all language age-appropriate']. Provide specific parameter ranges/values, complexity limits, and examples of what to vary. Ensure all recommendations are appropriate for struggling ${gradeDisplay} students and account for reading level.",
     "referenceLinks": [
       {"platform": "IXL", "url": "https://www.ixl.com/math/grade-X/skill-slug-from-subskill-keywords", "label": "IXL Learning — [subskill keywords] lessons under [grade] grade math", "description": "Practice exercises based on standard code ${standardCode || 'and grade level'}"},
       {"platform": "Khan Academy", "url": "https://www.khanacademy.org/math/grade-path/topic-from-subskill-keywords", "label": "Khan Academy — [subskill keywords] tutorials and practice", "description": "Tutorials aligned to ${standardCode || 'curriculum standards'} for [subskill keywords]"},
@@ -533,7 +557,10 @@ CRITICAL JSON FORMAT REQUIREMENTS:
 - End response with ]
 
 QUALITY CHECKLIST (Self-Verify Before Finalizing):
-${notes ? `✅ ⚠️ CRITICAL: All instructions from "Additional Notes/Instructions" have been strictly followed in all ${totalQuestions} questions` : ''}
+${notes ? `✅ ⚠️ CRITICAL: All instructions from "Additional Notes/Instructions" have been strictly followed in all ${totalQuestions} questions
+${notes.toLowerCase().includes('variation') || notes.toLowerCase().includes('1 on') || notes.toLowerCase().includes('one on') || /\d+\s+(?:on|for|about)/i.test(notes) ? `✅ If Notes specified variations within difficulty levels (e.g., "Easy: 2 questions, 1 on addition and 1 on subtraction"), all variations have been generated as specified
+✅ Each variation mentioned in Notes is clearly represented in the generated questions
+✅ Variations are applied consistently across all sets if multiple sets were requested` : ''}` : ''}
 ✅ All ${totalQuestions} questions align with ${stateStandards} standards for ${gradeDisplay}
 ✅ All ${totalQuestions} questions target the ${domain} domain${subSkill ? ' and ' + subSkill + ' sub-skill' : ''}
 ${standardCode ? `✅ All ${totalQuestions} questions align with standard code: ${standardCode}` : ''}
@@ -566,9 +593,18 @@ ${!isDefaultCount ? `✅ Multiple questions of the same difficulty level are var
 ✅ Reference links include proper URLs for IXL, Khan Academy, and/or Big Ideas Math
 ✅ All questions are clear, unambiguous, and age-appropriate
 ✅ No mathematical errors or logical contradictions
+✅ Each scaffoldingExplanation includes copy question recommendations ONLY for the same difficulty level:
+   - Easy questions include recommendations for 11 Easy copy questions only
+   - Medium questions include recommendations for 11 Medium copy questions only
+   - Hard questions include recommendations for 6 Hard copy questions only
+✅ Copy question recommendations are specifically tailored for struggling ${gradeDisplay} students
+✅ Recommendations account for reading level and use age-appropriate vocabulary for ${gradeDisplay}
+✅ Recommendations provide specific parameter ranges/values that are appropriate for struggling learners
+✅ All recommendations err on the side of simplicity rather than complexity for struggling students
 
 CRITICAL FINAL REMINDER:
-${notes ? `- ⚠️ CRITICAL: You MUST strictly follow ALL instructions from the "Additional Notes/Instructions" section. These notes are MANDATORY and must be incorporated into all ${totalQuestions} questions.` : ''}
+${notes ? `- ⚠️ CRITICAL: You MUST strictly follow ALL instructions from the "Additional Notes/Instructions" section. These notes are MANDATORY and must be incorporated into all ${totalQuestions} questions.
+${notes.toLowerCase().includes('variation') || notes.toLowerCase().includes('1 on') || notes.toLowerCase().includes('one on') || /\d+\s+(?:on|for|about)/i.test(notes) ? `- ⚠️ CRITICAL: If Notes specify variations within difficulty levels (e.g., "Easy: 2 questions, 1 on addition and 1 on subtraction"), you MUST generate questions that exactly match those variations. Each variation must be clearly represented, and variations should be applied consistently across all sets.` : ''}` : ''}
 - You MUST return EXACTLY ${totalQuestions} questions in the JSON array (${questionCounts.easy} Easy, ${questionCounts.medium} Medium, ${questionCounts.hard} Hard in that order)
 - The ${totalQuestions} questions MUST show proper scaffolding with subtle progression
 - ALL concepts of the sub-skill MUST be covered across the ${totalQuestions} questions
@@ -648,7 +684,11 @@ DIFFICULTY LEVEL GUIDELINES:
 - HARD: Complex reasoning, multi-step, synthesis. DO NOT automatically use "analysis" unless sub-skill naturally requires it.
 
 REQUIREMENTS FOR ALL ${totalQuestions} QUESTIONS:
-${notes ? `0. ⚠️ CRITICAL: You MUST strictly follow ALL instructions provided in the "Additional Notes/Instructions" section. These notes are MANDATORY and take precedence. Every requirement, constraint, format specification, or instruction in the notes MUST be incorporated into all ${totalQuestions} questions.` : ''}
+${notes ? `0. ⚠️ CRITICAL: You MUST strictly follow ALL instructions provided in the "Additional Notes/Instructions" section. These notes are MANDATORY and take precedence. Every requirement, constraint, format specification, or instruction in the notes MUST be incorporated into all ${totalQuestions} questions.
+   - If the Notes specify variations within a difficulty level (e.g., "Easy: 2 questions, 1 on addition and 1 on subtraction"), you MUST generate questions that match those exact variations
+   - Each variation must be clearly represented in the generated questions
+   - Variations should be applied consistently across all sets if multiple sets are requested
+   - The question distribution must match what is specified in the Notes (e.g., if Notes say "Easy: 2 questions, 1 on addition and 1 on subtraction", then generate exactly 2 Easy questions per set: one clearly focused on addition, one clearly focused on subtraction)` : ''}
 1. Each question must be ORIGINAL (not a variation of existing questions)
 2. Questions must align with ${stateStandards} standards for ${gradeDisplay}
 3. Questions must focus on ${domain}${subSkill ? ', specifically targeting ' + subSkill : ''}
@@ -669,7 +709,25 @@ ${!isDefaultCount ? `17. When generating multiple questions of the same difficul
 17. CRITICAL: Each question MUST include a "difficultyReasoning" field explaining why it is classified as Easy, Medium, or Hard
 18. CRITICAL: Each question MUST include a "scaffoldingExplanation" field explaining how it builds on previous questions and prepares for subsequent ones
 19. The "difficultyReasoning" should explain the cognitive demands, complexity level, and why this question fits the difficulty classification
-20. The "scaffoldingExplanation" should explain the pedagogical progression: how the Easy question establishes foundation, how Medium builds on Easy, and how Hard synthesizes concepts from both
+20. The "scaffoldingExplanation" should explain:
+   - The pedagogical progression: how the Easy question establishes foundation, how Medium builds on Easy, and how Hard synthesizes concepts from both
+   - COPY QUESTION RECOMMENDATIONS (CRITICAL): Provide specific recommendations for generating copy questions (variations) of this base question
+   - IMPORTANT: Each question's scaffoldingExplanation should ONLY contain recommendations for copy questions of the SAME difficulty level:
+     * Easy questions → recommendations for 11 Easy copy questions only
+     * Medium questions → recommendations for 11 Medium copy questions only
+     * Hard questions → recommendations for 6 Hard copy questions only
+   - IMPORTANT CONTEXT: These questions are for students who struggle in mathematics. Recommendations must be appropriate for struggling learners at ${gradeDisplay} level
+   - READING LEVEL CONSIDERATION: Recommendations must account for the reading level of ${gradeDisplay} students - use age-appropriate vocabulary and sentence complexity
+   - For the appropriate difficulty level, provide specific, actionable recommendations including:
+     * Parameter ranges/values (e.g., number ranges, coefficient sizes, fraction complexity)
+     * Complexity limits appropriate for struggling students
+     * Specific examples of what to vary (e.g., "Use numbers 10-30", "Use single-digit coefficients", "Use like denominators only")
+     * Considerations for reading level and mathematical vocabulary
+   - Examples of good recommendations:
+     * Easy question (Prime factorization, ${gradeDisplay}): "11 Easy copy questions: Use numbers 12-50 with 2-3 prime factors. Keep numbers small and familiar. Use simple vocabulary appropriate for ${gradeDisplay}."
+     * Medium question (Area problems, ${gradeDisplay}): "11 Medium copy questions: Use whole numbers 10-50 or simple decimals (0.5, 0.25). Maintain 2-3 step complexity. Keep language clear and accessible for ${gradeDisplay}."
+     * Hard question (Fraction addition, ${gradeDisplay}): "6 Hard copy questions: Use unlike denominators with no common factors, but keep denominators under 20. Maintain multi-step complexity. Ensure all language is age-appropriate for ${gradeDisplay}."
+   - CRITICAL: All recommendations must be appropriate for struggling ${gradeDisplay} students - err on the side of simpler rather than more complex
 
 Generate ${totalQuestions} high-quality, curriculum-aligned base questions with proper scaffolding now.`
 

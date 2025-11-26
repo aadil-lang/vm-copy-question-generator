@@ -164,6 +164,11 @@ export const SUB_SKILLS: Record<string, Record<string, string[]>> = {
 };
 
 export function getGradeRange(grade: string): string {
+  // Handle "High School" string input
+  if (grade.toLowerCase() === 'high school' || grade === 'High School') {
+    return "9-12";
+  }
+  
   const gradeNum = parseInt(grade);
   if (gradeNum >= 0 && gradeNum <= 2) return "K-2";
   if (gradeNum >= 3 && gradeNum <= 5) return "3-5";
@@ -186,10 +191,14 @@ export const STATE_OPTIONS = [
   { value: "VA", label: "Virginia (VA SOL)" }
 ];
 
-export const GRADE_OPTIONS = Array.from({ length: 13 }, (_, i) => {
-  if (i === 0) return { value: "K", label: "Kindergarten" };
-  return { value: String(i), label: `Grade ${i}` };
-});
+export const GRADE_OPTIONS = [
+  { value: "K", label: "Kindergarten" },
+  ...Array.from({ length: 8 }, (_, i) => ({ 
+    value: String(i + 1), 
+    label: `Grade ${i + 1}` 
+  })),
+  { value: "High School", label: "High School" }
+];
 
 export const DIFFICULTY_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "Easy", label: "Easy (Foundational)" },

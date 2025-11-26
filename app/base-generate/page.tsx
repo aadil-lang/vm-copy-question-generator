@@ -295,9 +295,10 @@ export default function BaseGeneratePage() {
                   }}
                 >
                   <option value="">Select Grade Level</option>
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map(grade => (
+                  {Array.from({ length: 8 }, (_, i) => i + 1).map(grade => (
                     <option key={grade} value={grade.toString()}>Grade {grade}</option>
                   ))}
+                  <option value="High School">High School</option>
                 </select>
               </div>
 
