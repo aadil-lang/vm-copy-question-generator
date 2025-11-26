@@ -248,8 +248,17 @@ CRITICAL: If you generate more than ${numQuestions} questions, only the first ${
 CRITICAL: Count your questions before submitting - ensure the array has EXACTLY ${numQuestions} elements.
 ${'='.repeat(80)}
 
-BASE QUESTION (STUDY THIS CAREFULLY):
+BASE QUESTION (STUDY THIS CAREFULLY - READ THE ENTIRE QUESTION):
 ${baseQuestion}
+
+⚠️⚠️⚠️ CRITICAL: READ THE ENTIRE BASE QUESTION ABOVE ⚠️⚠️⚠️
+- The base question may be long - you MUST read it completely from start to finish
+- Do NOT skip any part of the base question
+- Pay attention to ALL details, context, scenarios, and formatting
+- The base question contains ALL the information you need to generate similar questions
+- If the base question is a word problem with a story/context, you MUST preserve that format
+- If the base question has multiple sentences or paragraphs, read ALL of them
+- The entire base question is your template - use it completely
 
 ${'='.repeat(80)}
 ⚠️⚠️⚠️ ANTI-HALLUCINATION CHECKLIST ⚠️⚠️⚠️
@@ -458,8 +467,17 @@ CRITICAL: If you generate more than ${numQuestions} questions, only the first ${
 CRITICAL: Count your questions before submitting - ensure the array has EXACTLY ${numQuestions} elements.
 ${'='.repeat(80)}
 
-BASE QUESTION (STUDY THIS CAREFULLY):
+BASE QUESTION (STUDY THIS CAREFULLY - READ THE ENTIRE QUESTION):
 ${baseQuestion}
+
+⚠️⚠️⚠️ CRITICAL: READ THE ENTIRE BASE QUESTION ABOVE ⚠️⚠️⚠️
+- The base question may be long - you MUST read it completely from start to finish
+- Do NOT skip any part of the base question
+- Pay attention to ALL details, context, scenarios, and formatting
+- The base question contains ALL the information you need to generate similar questions
+- If the base question is a word problem with a story/context, you MUST preserve that format
+- If the base question has multiple sentences or paragraphs, read ALL of them
+- The entire base question is your template - use it completely
 
 ${'='.repeat(80)}
 ⚠️⚠️⚠️ ANTI-HALLUCINATION CHECKLIST ⚠️⚠️⚠️
@@ -688,7 +706,21 @@ Each distractor MUST have logic explaining VISUAL MISINTERPRETATION:
 - "Confused similar-looking angles or lengths"
 - "Misread coordinate points on graph"
 
-9. Image Variation Requirements (CRITICAL - MUST FOLLOW BASE QUESTION STRUCTURE)
+9. Format Matching Requirements (CRITICAL - MUST MATCH BASE QUESTION FORMAT)
+- CRITICAL: Your generated questions MUST match the EXACT format of the base question
+- CRITICAL: The "question" field must contain the COMPLETE question stem - ALL sentences from the base question
+- If the base question has multiple sentences (context, setup, then question), your generated question must have the SAME structure
+- DO NOT truncate the question to just the last statement - include ALL sentences that appear in the base question
+- If the base question is a word problem with a story, ALL generated questions must be word problems with stories
+- If the base question uses specific phrasing like "Sarah has...", your questions should use similar phrasing with different names
+- PRESERVE sentence structure: Match the grammatical patterns, sentence length, and complexity
+- PRESERVE question format: If base asks "How many...?", all generated should ask "How many...?"
+- PRESERVE context style: If base has a real-world scenario, all generated should have real-world scenarios
+- PRESERVE formatting: Match punctuation, capitalization, and any special formatting
+- ONLY vary: names, numbers, specific locations/objects, but keep the same structure
+- The base question format is your template - follow it exactly
+
+10. Image Variation Requirements (CRITICAL - MUST FOLLOW BASE QUESTION STRUCTURE)
 - Each of the ${numQuestions} questions MUST have a DIFFERENT image description
 - CRITICAL: ALL generated images must be the SAME TYPE as the base question (triangle → triangles, graph → graphs, table → tables)
 - CRITICAL: ALL generated questions must ask the SAME TYPE of question as the base (area → area, angle → angle, value → value)
@@ -697,7 +729,35 @@ Each distractor MUST have logic explaining VISUAL MISINTERPRETATION:
 - Ensure all images are mathematically valid and consistent with their descriptions
 - Do NOT repeat the same image description across questions
 - Do NOT change the image type, question type, or add new visual elements not in the base question
-- Use the base question's image description as a template - follow its exact structure and format` : `Characteristics: Mathematical concepts embedded in real-life scenarios, stories, or contexts.
+- Use the base question's image description as a template - follow its exact structure and format
+
+11. Context Diversity for Image-Based Questions (CRITICAL - FOR WORD PROBLEMS WITH CONTEXT)
+${baseQuestion.match(/context|scenario|situation|story|real-world|real life|everyday|daily|life|has|bought|sold|traveled|drove|walked|ran|spent|earned|saved|collected|gathered|planted|harvested|baked|cooked|made|built|painted|drew|wrote|read|studied|played|won|lost|gave|received|shared|divided|combined|mixed|poured|filled|emptied|weighed|measured|counted|found|discovered|created|designed|constructed/i) ? `- CRITICAL: The base question contains a context/scenario/story (word problem format)
+- CRITICAL: Each of the ${numQuestions} generated questions MUST have a DIFFERENT context from the base question
+- CRITICAL: NO CONTEXT REPETITION: All ${numQuestions} questions must have UNIQUE contexts - no two questions can share the same context
+- CRITICAL: Maintain the EXACT same format and structure as the base question while changing ONLY the context
+- Context diversity examples:
+  * If base mentions "Sarah's garden", generated contexts could be: "Maria's farm", "Tom's backyard", "Lisa's park", "John's field", etc.
+  * If base mentions "a store", generated contexts could be: "a bakery", "a library", "a school", "a museum", "a restaurant", etc.
+  * If base mentions "a journey", generated contexts could be: "a race", "a delivery", "a hike", "a commute", "a trip", etc.
+- Varied contexts: Draw from diverse real-life situations (shopping, travel, construction, cooking, sports, finance, school, nature, work, hobbies, family, community)
+- Different characters: Use diverse names, professions, ages, and settings
+- Different locations: Vary settings (home, school, park, store, office, etc.)
+- Different time periods: Vary temporal contexts (morning, afternoon, seasons, etc.)
+- CRITICAL: Maintain the same mathematical structure and question type while changing ONLY the context
+- CRITICAL: The context must be relevant to the mathematical problem being solved
+- CRITICAL: PRESERVE THE EXACT FORMAT: If the base question uses "Sarah has X and buys Y, how many...?", your generated questions should use the SAME sentence structure with different names and numbers
+- CRITICAL: Verify that each of the ${numQuestions} questions has a UNIQUE context that differs from:
+  * The base question's context
+  * All other generated questions' contexts
+- Example: If generating 20 questions, you must create 20 completely different contexts/scenarios
+- DO NOT reuse contexts: Each question must have its own unique story/situation
+- FORMAT MATCHING: Your generated questions must match the base question's format exactly:
+  * Same sentence structure
+  * Same question phrasing
+  * Same grammatical patterns
+  * Same level of detail
+  * Only change: names, numbers, and specific context details` : '- If the base question does not contain a context/scenario, maintain that format (no context needed)'}` : `Characteristics: Mathematical concepts embedded in real-life scenarios, stories, or contexts.
 
 Apply These Additional Requirements:
 
@@ -836,6 +896,7 @@ CRITICAL REQUIREMENTS FOR OPTIONS AND CORRECT ANSWERS:
 
 QUALITY CHECKLIST (Self-Verify Before Finalizing):
 ✅ Format matches base question exactly
+✅ ${isImageBased ? 'CRITICAL: Question field contains COMPLETE question stem with ALL sentences from base question format (not just the last question statement)' : ''}
 ✅ Correct answer is mathematically verified
 ✅ Options don't follow a predictable pattern
 ✅ CRITICAL: Number of options is EXACTLY ${numOptions} - count them to verify!
@@ -887,7 +948,7 @@ CRITICAL JSON FORMAT REQUIREMENTS:
 Each question object MUST have this structure:
 ${isImageBased ? `{
   "image": "[Detailed image description with sides, angles, equations, table values, etc.]",
-  "question": "[Question text referencing the image]",
+  "question": "[COMPLETE question stem - include ALL sentences from the base question format, not just the question part. If the base question has context/setup sentences, include them all. Example: 'Sarah has a rectangular garden. The length is 5 meters and the width is 3 meters. What is the area of the garden?']",
   "solution": "Step 1: [First step with reference to image elements]\nStep 2: [Second step]\nStep 3: [Final step]",
   "options": [
     {"text": "[Correct answer value]", "logic": "CA"},
@@ -921,7 +982,7 @@ DO NOT return placeholder text like "Option A", "Option B", etc. Each option MUS
 Your response should look like this (example for ${numQuestions} questions):
 [${isImageBased ? `{
   "image": "A right triangle with sides labeled: base = 3 cm, height = 4 cm, hypotenuse = 5 cm.",
-  "question": "What is the area of the triangle shown?",
+  "question": "A right triangle is shown with a base of 3 cm and height of 4 cm. What is the area of the triangle?",
   "solution": "Step 1: Identify the base and height from the image. Base = 3 cm, Height = 4 cm.\nStep 2: Apply area formula: Area = (1/2) × base × height = (1/2) × 3 × 4 = 6 cm²",
   "options": [
     {"text": "6 cm²", "logic": "CA"},
@@ -968,17 +1029,46 @@ ${isImageBased ? '' : '- DO NOT change sentence structure, grammatical patterns,
   }
   
   try {
+    // Get maximum tokens supported by the model
+    const aiProvider = getAIProvider(model)
+    let maxModelTokens = 16384 // Default for OpenAI models (GPT-4o, GPT-4 Turbo, GPT-3.5 Turbo)
+    if (aiProvider === 'gemini') {
+      maxModelTokens = 8192 // Gemini models typically support 8192 output tokens
+    }
+    
     // Calculate tokens needed
     const tokensPerQuestion = Math.max(500, 400 * numOptions)
     let tokensNeeded = Math.max(1500, tokensPerQuestion * numQuestions)
+    
+    // Increase token limit for larger question counts
+    // For 10+ questions, we need significantly more tokens
+    if (numQuestions >= 10) {
+      tokensNeeded = Math.min(maxModelTokens, Math.floor(tokensPerQuestion * numQuestions * 1.5))
+    } else if (numQuestions > 5) {
+      tokensNeeded = Math.min(maxModelTokens, Math.floor(tokensPerQuestion * numQuestions * 1.3))
+    } else {
     tokensNeeded = Math.min(8000, tokensNeeded)
+    }
+    
     if (numQuestions > 1) {
       tokensNeeded = Math.floor(tokensNeeded * 1.2)
     }
-    // Increase tokens if images are included (vision responses are longer)
+    
+    // Adjust tokens for image-based questions
+    // Since image analysis is done separately via analyzeImageForQuestion,
+    // we can use fewer tokens as the image description is already provided
     if (questionType === 'image_based' && imageFiles.length > 0) {
-      tokensNeeded = Math.min(16000, Math.floor(tokensNeeded * 1.5)) // Increase by 50% for vision
+      // Reduce tokens for image-based since image description is already provided
+      // The model doesn't need to analyze images, just generate questions from the description
+      if (numQuestions >= 10) {
+        tokensNeeded = Math.min(maxModelTokens, Math.floor(tokensNeeded * 0.9)) // 10% reduction
+      } else {
+        tokensNeeded = Math.min(maxModelTokens, Math.floor(tokensNeeded * 0.85)) // 15% reduction
+      }
     }
+    
+    // Final cap to ensure we never exceed model's maximum
+    tokensNeeded = Math.min(maxModelTokens, tokensNeeded)
     
     // Set temperature based on question type
     // For mathematical questions: 0.5 for more deterministic, precise answers
@@ -1197,7 +1287,7 @@ ${isImageBased ? '' : '- DO NOT change sentence structure, grammatical patterns,
       // This is the most important safeguard - always enforce exact count
       if (options.length > numOptions) {
         console.warn(`Question ${idx + 1}: FORCE TRIMMING ${options.length} options down to ${numOptions}`)
-        options = options.slice(0, numOptions)
+          options = options.slice(0, numOptions)
       } else if (options.length < numOptions) {
         console.warn(`Question ${idx + 1}: Only ${options.length} options provided, expected ${numOptions}`)
       }

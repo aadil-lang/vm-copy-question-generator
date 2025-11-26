@@ -11,9 +11,9 @@ interface Question {
 }
 
 export default function BaseGeneratePage() {
-  const [stateStandards, setStateStandards] = useState('CCSS')
-  const [gradeLevel, setGradeLevel] = useState('5')
-  const [domain, setDomain] = useState('Operations')
+  const [stateStandards, setStateStandards] = useState('')
+  const [gradeLevel, setGradeLevel] = useState('')
+  const [domain, setDomain] = useState('')
   const [subSkill, setSubSkill] = useState('')
   const [standardCode, setStandardCode] = useState('')
   const [model, setModel] = useState('gpt-4o')
@@ -223,6 +223,7 @@ export default function BaseGeneratePage() {
                     cursor: 'pointer'
                   }}
                 >
+                  <option value="">Select State Standards</option>
                   <option value="CCSS">Common Core State Standards (CCSS)</option>
                   <option value="TEKS">Texas Essential Knowledge and Skills (TEKS)</option>
                   <option value="FL">Florida Standards</option>
@@ -253,6 +254,7 @@ export default function BaseGeneratePage() {
                     cursor: 'pointer'
                   }}
                 >
+                  <option value="">Select Grade Level</option>
                   {Array.from({ length: 12 }, (_, i) => i + 1).map(grade => (
                     <option key={grade} value={grade.toString()}>Grade {grade}</option>
                   ))}

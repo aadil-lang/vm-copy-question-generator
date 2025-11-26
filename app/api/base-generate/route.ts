@@ -516,11 +516,7 @@ Generate 3 high-quality, curriculum-aligned base questions with proper scaffoldi
       throw new Error('AI did not return an array of questions')
     }
     
-    if (questions.length !== 3) {
-      throw new Error(`Expected exactly 3 questions (Easy, Medium, Hard), but received ${questions.length}`)
-    }
-    
-    // Validate and clean questions
+    // Validate and clean questions first, then check length
     const validatedQuestions = questions
       .filter((q: any) => q && typeof q === 'object')
       .map((q: any, index: number) => {
@@ -567,9 +563,14 @@ Generate 3 high-quality, curriculum-aligned base questions with proper scaffoldi
       throw new Error('No valid questions were generated. Please check the parameters and try again.')
     }
     
-    // Ensure we have exactly 3 questions
+    // Ensure we have exactly 3 questions after validation
     if (validatedQuestions.length !== 3) {
-      throw new Error(`Expected exactly 3 questions with scaffolding, but only ${validatedQuestions.length} were generated`)
+      const originalCount = questions.length
+      const filteredCount = originalCount - validatedQuestions.length
+      const errorMsg = filteredCount > 0
+        ? `Expected exactly 3 valid questions (Easy, Medium, Hard), but received ${originalCount} items with ${filteredCount} invalid item(s) filtered out, leaving ${validatedQuestions.length} valid question(s)`
+        : `Expected exactly 3 questions (Easy, Medium, Hard), but only ${validatedQuestions.length} were generated`
+      throw new Error(errorMsg)
     }
     
     // Sort by difficulty to ensure Easy, Medium, Hard order
