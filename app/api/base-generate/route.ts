@@ -22,6 +22,8 @@ export async function POST(request: NextRequest) {
     const domain = data.domain || ''
     const subSkill = data.subSkill || ''
     const standardCode = data.standardCode || ''
+    const notes = data.notes || ''
+    const setOfQuestions = data.setOfQuestions || '1'
     const model = data.model || 'gpt-4o'
     
     // Load relevant subskills
@@ -38,6 +40,8 @@ export async function POST(request: NextRequest) {
       domain,
       subSkill,
       standardCode,
+      notes,
+      setOfQuestions,
       subskillsText,
       model
     )
@@ -52,15 +56,96 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Parse question counts from notes field
+function parseQuestionCounts(notes: string): { easy: number, medium: number, hard: number } {
+  // Default to 1 each if not specified
+  let easy = 1, medium = 1, hard = 1
+  
+  if (!notes) return { easy, medium, hard }
+  
+  const notesLower = notes.toLowerCase()
+  
+  // Look for patterns like:
+  // - "2 easy, 2 medium, 2 hard"
+  // - "generate 2 questions for easy, 2 for medium, 2 for hard"
+  // - "2 Easy questions, 2 Medium questions, 2 Hard questions"
+  // - "easy: 2, medium: 2, hard: 2"
+  
+  const easyPatterns = [
+    /(\d+)\s*(?:questions?\s+)?(?:for\s+)?easy/gi,
+    /easy\s*:?\s*(\d+)/gi,
+    /easy\s+(\d+)/gi
+  ]
+  
+  const mediumPatterns = [
+    /(\d+)\s*(?:questions?\s+)?(?:for\s+)?medium/gi,
+    /medium\s*:?\s*(\d+)/gi,
+    /medium\s+(\d+)/gi
+  ]
+  
+  const hardPatterns = [
+    /(\d+)\s*(?:questions?\s+)?(?:for\s+)?hard/gi,
+    /hard\s*:?\s*(\d+)/gi,
+    /hard\s+(\d+)/gi
+  ]
+  
+  // Try each pattern for easy
+  for (const pattern of easyPatterns) {
+    const match = notesLower.match(pattern)
+    if (match) {
+      const num = parseInt(match[0].match(/\d+/)?.[0] || '1')
+      if (num > 0 && num <= 10) { // Limit to reasonable number
+        easy = num
+        break
+      }
+    }
+  }
+  
+  // Try each pattern for medium
+  for (const pattern of mediumPatterns) {
+    const match = notesLower.match(pattern)
+    if (match) {
+      const num = parseInt(match[0].match(/\d+/)?.[0] || '1')
+      if (num > 0 && num <= 10) {
+        medium = num
+        break
+      }
+    }
+  }
+  
+  // Try each pattern for hard
+  for (const pattern of hardPatterns) {
+    const match = notesLower.match(pattern)
+    if (match) {
+      const num = parseInt(match[0].match(/\d+/)?.[0] || '1')
+      if (num > 0 && num <= 10) {
+        hard = num
+        break
+      }
+    }
+  }
+  
+  return { easy, medium, hard }
+}
+
 async function generateBaseQuestionsWithGPT(
   stateStandards: string,
   gradeLevel: string,
   domain: string,
   subSkill: string,
   standardCode: string,
+  notes: string,
+  setOfQuestions: string,
   subskillsText: string,
   model: string
 ) {
+  // Format grade level for display (handle "High School" specially)
+  const gradeDisplay = gradeLevel.toLowerCase() === 'high school' ? 'High School' : `Grade ${gradeLevel}`
+  
+  // Parse question counts from notes
+  const questionCounts = parseQuestionCounts(notes)
+  const totalQuestions = questionCounts.easy + questionCounts.medium + questionCounts.hard
+  const isDefaultCount = questionCounts.easy === 1 && questionCounts.medium === 1 && questionCounts.hard === 1
   // Build system prompt for BASE QUESTION GENERATION
   const systemPrompt = `You are an expert educational content generator specializing in creating high-quality, original mathematical questions aligned with US curricula standards. Your primary task is to generate pedagogically sound multiple-choice questions that assess specific mathematical skills and concepts based on curriculum standards, grade levels, and learning objectives.
 
@@ -125,15 +210,15 @@ STANDARD CODE:
 
 TIER 3: SCAFFOLDING AND DIFFICULTY PROGRESSION (CRITICAL)
 
-You MUST generate exactly 3 questions with proper scaffolding across difficulty levels:
-1. EASY question
-2. MEDIUM question  
-3. HARD question
+You MUST generate exactly ${totalQuestions} questions with proper scaffolding across difficulty levels:
+${questionCounts.easy > 0 ? `${questionCounts.easy} EASY question${questionCounts.easy > 1 ? 's' : ''}` : ''}
+${questionCounts.medium > 0 ? `${questionCounts.medium} MEDIUM question${questionCounts.medium > 1 ? 's' : ''}` : ''}
+${questionCounts.hard > 0 ? `${questionCounts.hard} HARD question${questionCounts.hard > 1 ? 's' : ''}` : ''}
 
 SCAFFOLDING REQUIREMENTS (CRITICAL):
-- The 3 questions MUST form a coherent learning progression for the sub-skill: ${subSkill || domain}
+- The ${totalQuestions} questions MUST form a coherent learning progression for the sub-skill: ${subSkill || domain}
 - Each question must build upon the previous one, showing subtle but clear progression
-- ALL concepts related to the sub-skill MUST be covered across the 3 questions
+- ALL concepts related to the sub-skill MUST be covered across the ${totalQuestions} questions
 - The progression should be natural and pedagogically sound
 - Questions should cover different aspects or applications of the sub-skill
 
@@ -177,7 +262,8 @@ CRITICAL SCAFFOLDING RULES:
 4. The progression should feel natural, not forced
 5. If Easy tests basic computation, Medium should test computation with complexity, Hard should test non-routine computation
 6. If Easy tests basic understanding, Medium should test application of understanding, Hard should test synthesis
-7. Cover ALL key concepts of the sub-skill across the 3 questions
+7. Cover ALL key concepts of the sub-skill across the ${totalQuestions} questions
+${!isDefaultCount ? `8. When generating multiple questions of the same difficulty, ensure they are variations that test different aspects while maintaining that difficulty level` : '8. Ensure each question addresses a different facet or application of the sub-skill'}
 8. Ensure each question addresses a different facet or application of the sub-skill
 
 TIER 4: Domain and Sub-Skill Requirements
@@ -190,8 +276,10 @@ ${subSkill ? '- Questions MUST specifically target the sub-skill: ' + subSkill :
 - Questions should be appropriate for Grade ${gradeLevel}
 
 Curriculum Standards: ${stateStandards}
-Grade Level: Grade ${gradeLevel}
+Grade Level: ${gradeDisplay}
 Relevant Subskills: ${subskillsText}
+${notes ? `\n\n⚠️ CRITICAL: ADDITIONAL NOTES/INSTRUCTIONS (MANDATORY):\n${notes}\n\nIMPORTANT: The instructions above in the "Additional Notes/Instructions" section are MANDATORY and must be strictly followed when generating all ${totalQuestions} questions. These notes take precedence and should guide your question generation process. Ensure that every aspect mentioned in the notes is incorporated into the generated questions.\n` : ''}
+${setOfQuestions ? `Set(s) of Questions: ${setOfQuestions}\n` : ''}
 
 CRITICAL REQUIREMENTS FOR OPTIONS AND CORRECT ANSWERS:
 
@@ -283,7 +371,7 @@ CRITICAL REQUIREMENTS FOR OPTIONS AND CORRECT ANSWERS:
 
 OUTPUT FORMAT:
 
-You MUST return a valid JSON array containing exactly 3 question objects (one for each difficulty level). Each question object MUST have this structure:
+You MUST return a valid JSON array containing exactly ${totalQuestions} question objects (${questionCounts.easy} Easy, ${questionCounts.medium} Medium, ${questionCounts.hard} Hard). ${!isDefaultCount ? `When generating multiple questions of the same difficulty level, each should be a variation that tests different aspects while maintaining that difficulty level. ` : ''}Each question object MUST have this structure:
 
 [
   {
@@ -296,7 +384,9 @@ You MUST return a valid JSON array containing exactly 3 question objects (one fo
       {"text": "[Distractor 3 - based on common mistake for ${subSkill || domain}]", "logic": "[Specific error related to ${subSkill || domain}]"}
     ],
     "image": "",
-    "solution": "Step 1: [Identify what is being asked - detailed explanation]\\nStep 2: [Identify given information - list all values]\\nStep 3: [Determine approach/formula - explain why]\\nStep 4: [Write formula and substitute values - show all substitutions]\\nStep 5: [Perform calculations step by step - show all arithmetic]\\nStep 6: [Simplify result - show simplifications]\\nStep 7: [State final answer with verification]"
+    "solution": "Step 1: [Identify what is being asked - detailed explanation]\\nStep 2: [Identify given information - list all values]\\nStep 3: [Determine approach/formula - explain why]\\nStep 4: [Write formula and substitute values - show all substitutions]\\nStep 5: [Perform calculations step by step - show all arithmetic]\\nStep 6: [Simplify result - show simplifications]\\nStep 7: [State final answer with verification]",
+    "difficultyReasoning": "This question is Easy because it requires basic understanding of [concept], involves single-step or simple two-step calculation, and tests direct recall of fundamental principles without requiring complex reasoning or multi-step problem-solving.",
+    "scaffoldingExplanation": "This Easy question establishes the foundation by introducing [concept] in its simplest form. It prepares students for the Medium question by ensuring they understand [prerequisite skill] and can perform basic operations with [concept]."
   },
   {
     "difficulty": "Medium",
@@ -308,7 +398,9 @@ You MUST return a valid JSON array containing exactly 3 question objects (one fo
       {"text": "[Distractor 3 - based on common mistake for ${subSkill || domain}]", "logic": "[Specific error related to ${subSkill || domain}]"}
     ],
     "image": "",
-    "solution": "Step 1: [Identify what is being asked - detailed explanation]\\nStep 2: [Identify given information - list all values and conditions]\\nStep 3: [Determine approach/formula - explain which method and why]\\nStep 4: [Write formula and substitute values - show all substitutions explicitly]\\nStep 5: [Perform intermediate calculations - show each operation]\\nStep 6: [Continue calculations - show next set of operations]\\nStep 7: [Simplify result - show all simplifications]\\nStep 8: [Verify answer - check if it makes sense]\\nStep 9: [State final answer with appropriate units]"
+    "solution": "Step 1: [Identify what is being asked - detailed explanation]\\nStep 2: [Identify given information - list all values and conditions]\\nStep 3: [Determine approach/formula - explain which method and why]\\nStep 4: [Write formula and substitute values - show all substitutions explicitly]\\nStep 5: [Perform intermediate calculations - show each operation]\\nStep 6: [Continue calculations - show next set of operations]\\nStep 7: [Simplify result - show all simplifications]\\nStep 8: [Verify answer - check if it makes sense]\\nStep 9: [State final answer with appropriate units]",
+    "difficultyReasoning": "This question is Medium because it requires understanding of relationships and connections, involves 2-3 steps or combining concepts, and demands moderate complexity in reasoning while building on the foundational knowledge from the Easy question.",
+    "scaffoldingExplanation": "This Medium question builds on the Easy question by [specific progression]. It extends the concept by [how it builds], requiring students to [what additional skills/thinking]. This prepares students for the Hard question by introducing [intermediate complexity element]."
   },
   {
     "difficulty": "Hard",
@@ -320,15 +412,19 @@ You MUST return a valid JSON array containing exactly 3 question objects (one fo
       {"text": "[Distractor 3 - based on common mistake for ${subSkill || domain}]", "logic": "[Specific error related to ${subSkill || domain}]"}
     ],
     "image": "",
-    "solution": "Step 1: [Identify what is being asked - comprehensive explanation]\\nStep 2: [Identify given information - list all values, conditions, and constraints]\\nStep 3: [Determine approach/strategy - explain the multi-step plan]\\nStep 4: [Write first formula/equation - show complete formula]\\nStep 5: [Substitute values into first formula - show all substitutions]\\nStep 6: [Perform first set of calculations - show all arithmetic operations]\\nStep 7: [Write second formula/equation if needed - show complete formula]\\nStep 8: [Substitute intermediate results - show how values are used]\\nStep 9: [Perform second set of calculations - show all operations]\\nStep 10: [Continue with additional steps if needed - show all work]\\nStep 11: [Simplify final result - show all simplifications and reductions]\\nStep 12: [Verify answer - check against conditions and reasonableness]\\nStep 13: [State final answer with complete interpretation]"
+    "solution": "Step 1: [Identify what is being asked - comprehensive explanation]\\nStep 2: [Identify given information - list all values, conditions, and constraints]\\nStep 3: [Determine approach/strategy - explain the multi-step plan]\\nStep 4: [Write first formula/equation - show complete formula]\\nStep 5: [Substitute values into first formula - show all substitutions]\\nStep 6: [Perform first set of calculations - show all arithmetic operations]\\nStep 7: [Write second formula/equation if needed - show complete formula]\\nStep 8: [Substitute intermediate results - show how values are used]\\nStep 9: [Perform second set of calculations - show all operations]\\nStep 10: [Continue with additional steps if needed - show all work]\\nStep 11: [Simplify final result - show all simplifications and reductions]\\nStep 12: [Verify answer - check against conditions and reasonableness]\\nStep 13: [State final answer with complete interpretation]",
+    "difficultyReasoning": "This question is Hard because it requires complex reasoning, multi-step problem-solving, synthesis of multiple concepts, and demands higher-order thinking skills. It challenges students to integrate knowledge from the Easy and Medium questions while applying it to a more complex scenario.",
+    "scaffoldingExplanation": "This Hard question synthesizes the concepts from both the Easy and Medium questions by [specific synthesis]. It requires students to [what complex thinking], building on the foundational skills from Easy and the intermediate skills from Medium. This question represents the culmination of the learning progression, testing students' ability to [final assessment goal]."
   }
 ]
 
 CRITICAL JSON FORMAT REQUIREMENTS:
 - You MUST return a valid JSON array starting with [ and ending with ]
-- The array must contain exactly 3 question objects (Easy, Medium, Hard in that order)
+- The array must contain exactly ${totalQuestions} question objects (${questionCounts.easy} Easy, ${questionCounts.medium} Medium, ${questionCounts.hard} Hard in that order)
 - Each question object must have exactly 4 options
 - Each question object must include a "difficulty" field ("Easy", "Medium", or "Hard")
+- Each question object MUST include a "difficultyReasoning" field explaining why it is classified at that difficulty level
+- Each question object MUST include a "scaffoldingExplanation" field explaining how it builds on previous questions
 - DO NOT include any text outside the JSON array
 - DO NOT use markdown code blocks (no \`\`\`json or \`\`\`)
 - DO NOT include explanations or text before or after the JSON
@@ -336,11 +432,13 @@ CRITICAL JSON FORMAT REQUIREMENTS:
 - End response with ]
 
 QUALITY CHECKLIST (Self-Verify Before Finalizing):
-✅ All 3 questions align with ${stateStandards} standards for Grade ${gradeLevel}
-✅ All 3 questions target the ${domain} domain${subSkill ? ' and ' + subSkill + ' sub-skill' : ''}
-${standardCode ? `✅ All 3 questions align with standard code: ${standardCode}` : ''}
-✅ Proper scaffolding: Easy → Medium → Hard shows clear progression
-✅ All concepts of the sub-skill are covered across the 3 questions
+${notes ? `✅ ⚠️ CRITICAL: All instructions from "Additional Notes/Instructions" have been strictly followed in all ${totalQuestions} questions` : ''}
+✅ All ${totalQuestions} questions align with ${stateStandards} standards for ${gradeDisplay}
+✅ All ${totalQuestions} questions target the ${domain} domain${subSkill ? ' and ' + subSkill + ' sub-skill' : ''}
+${standardCode ? `✅ All ${totalQuestions} questions align with standard code: ${standardCode}` : ''}
+✅ Proper scaffolding: Questions show clear progression within and across difficulty levels
+✅ All concepts of the sub-skill are covered across the ${totalQuestions} questions
+${!isDefaultCount ? `✅ Multiple questions of the same difficulty level are variations that test different aspects while maintaining that difficulty level` : ''}
 ✅ Each question addresses a different aspect of the sub-skill
 ✅ Easy is appropriately easy (not forced into application)
 ✅ Medium is appropriately moderate (not forced into application unless sub-skill demands it)
@@ -364,9 +462,11 @@ ${standardCode ? `✅ All 3 questions align with standard code: ${standardCode}`
 ✅ No mathematical errors or logical contradictions
 
 CRITICAL FINAL REMINDER:
-- You MUST return EXACTLY 3 questions in the JSON array (Easy, Medium, Hard in that order)
-- The 3 questions MUST show proper scaffolding with subtle progression
-- ALL concepts of the sub-skill MUST be covered across the 3 questions
+${notes ? `- ⚠️ CRITICAL: You MUST strictly follow ALL instructions from the "Additional Notes/Instructions" section. These notes are MANDATORY and must be incorporated into all ${totalQuestions} questions.` : ''}
+- You MUST return EXACTLY ${totalQuestions} questions in the JSON array (${questionCounts.easy} Easy, ${questionCounts.medium} Medium, ${questionCounts.hard} Hard in that order)
+- The ${totalQuestions} questions MUST show proper scaffolding with subtle progression
+- ALL concepts of the sub-skill MUST be covered across the ${totalQuestions} questions
+${!isDefaultCount ? `- When generating multiple questions of the same difficulty, ensure they are variations that test different aspects while maintaining that difficulty level` : ''}
 - Each question MUST have EXACTLY 4 options - NO MORE, NO LESS
 - Each solution MUST have steps on SEPARATE LINES using \\n - do NOT put multiple steps on the same line
 - Solution format must be: "Step 1: ...\\nStep 2: ...\\nStep 3: ..." (with \\n between each step)
@@ -378,13 +478,14 @@ CRITICAL FINAL REMINDER:
 - DO NOT skip formula applications - show formula, substitution, then calculation
 - DO NOT skip explanations - explain why each step is taken
 - Verify scaffolding: Easy should be easy, Medium should be moderate (not forced application), Hard should be complex (not forced analysis)
-- Verify concept coverage: All key aspects of the sub-skill are addressed across the 3 questions
-- Verify that all 3 questions align with the curriculum standards and grade level
-- Verify that all 3 questions target the specified domain and sub-skill
-${standardCode ? `- Verify that all 3 questions align with standard code: ${standardCode}` : ''}
-- Count your questions: The array must have exactly 3 elements, no more, no less
+- Verify concept coverage: All key aspects of the sub-skill are addressed across the ${totalQuestions} questions
+- Verify that all ${totalQuestions} questions align with the curriculum standards and grade level
+- Verify that all ${totalQuestions} questions target the specified domain and sub-skill
+${standardCode ? `- Verify that all ${totalQuestions} questions align with standard code: ${standardCode}` : ''}
+- Count your questions: The array must have exactly ${totalQuestions} elements, no more, no less
+${!isDefaultCount ? `- Verify question distribution: ${questionCounts.easy} Easy, ${questionCounts.medium} Medium, ${questionCounts.hard} Hard` : ''}
 - Count options in each question: Each question must have exactly 4 options
-- Verify before submitting: Check that your JSON array contains exactly 3 question objects
+- Verify before submitting: Check that your JSON array contains exactly ${totalQuestions} question objects
 - Verify before submitting: Check that each question has exactly 4 options in its options array
 - Verify before submitting: Check that ALL options have a "logic" field (CA for correct, error description for distractors)
 - Verify before submitting: Check that each distractor's logic describes a COMMON MISTAKE specific to the sub-skill: ${subSkill || domain}
@@ -395,37 +496,45 @@ ${standardCode ? `- Verify that all 3 questions align with standard code: ${stan
 - Verify before submitting: Check that all formula applications show the formula, substitutions, and calculations
 - Verify before submitting: Check that scaffolding progression is clear and natural
 - The array must start with [ and end with ]
-- DO NOT return fewer than 3 questions
-- DO NOT return more than 3 questions
+- DO NOT return fewer than ${totalQuestions} questions
+- DO NOT return more than ${totalQuestions} questions
 - DO NOT add extra options or remove options - the count must match exactly
 - DO NOT put multiple solution steps on the same line - each step MUST be on its own line with \\n`
 
   // Build user prompt
-  const userPrompt = `Generate 3 original base questions with proper scaffolding across difficulty levels for the following specifications:
+  const scaffoldingText = isDefaultCount
+    ? `1. Generate exactly ${totalQuestions} questions: ONE Easy, ONE Medium, ONE Hard`
+    : `1. Generate exactly ${totalQuestions} questions: ${questionCounts.easy} Easy, ${questionCounts.medium} Medium, ${questionCounts.hard} Hard`
+  
+  const userPrompt = `Generate ${totalQuestions} original base questions with proper scaffolding across difficulty levels for the following specifications:
 
 CURRICULUM ALIGNMENT:
 - State Standards: ${stateStandards}
-- Grade Level: Grade ${gradeLevel}
+- Grade Level: ${gradeDisplay}
 - Domain: ${domain}
 ${subSkill ? `- Sub-Skill: ${subSkill}` : '- Sub-Skill: General concepts within the domain'}
 ${standardCode ? `- Standard Code: ${standardCode}` : ''}
+- Set(s) of Questions: ${setOfQuestions}
 - Relevant Subskills: ${subskillsText}
+${notes ? `\n\n⚠️ CRITICAL: ADDITIONAL NOTES/INSTRUCTIONS (MUST BE FOLLOWED):\n${notes}\n\nIMPORTANT: The instructions above in the "Additional Notes/Instructions" section are MANDATORY and must be strictly followed when generating all ${totalQuestions} questions. These notes take precedence and should guide your question generation process. Ensure that every aspect mentioned in the notes is incorporated into the generated questions.\n` : ''}
 
 SCAFFOLDING REQUIREMENTS:
-1. Generate exactly 3 questions: ONE Easy, ONE Medium, ONE Hard
-2. The 3 questions must show clear but subtle progression
-3. Each question must build upon the previous one
-4. ALL concepts related to the sub-skill must be covered across the 3 questions
-5. Each question should address a different aspect or application of the sub-skill
+${scaffoldingText}
+2. The ${totalQuestions} questions must show clear but subtle progression
+3. Questions within the same difficulty level should show variation while maintaining that difficulty level
+4. Questions should build upon previous questions of the same or lower difficulty level
+5. ALL concepts related to the sub-skill must be covered across the ${totalQuestions} questions
+6. Each question should address a different aspect or application of the sub-skill
 
 DIFFICULTY LEVEL GUIDELINES:
 - EASY: Basic understanding/recall, single-step or simple problems. DO NOT force real-world scenarios unless sub-skill demands it.
 - MEDIUM: Moderate complexity, 2-3 steps, deeper understanding. DO NOT automatically use "application" unless sub-skill naturally involves real-world scenarios.
 - HARD: Complex reasoning, multi-step, synthesis. DO NOT automatically use "analysis" unless sub-skill naturally requires it.
 
-REQUIREMENTS FOR ALL 3 QUESTIONS:
+REQUIREMENTS FOR ALL ${totalQuestions} QUESTIONS:
+${notes ? `0. ⚠️ CRITICAL: You MUST strictly follow ALL instructions provided in the "Additional Notes/Instructions" section. These notes are MANDATORY and take precedence. Every requirement, constraint, format specification, or instruction in the notes MUST be incorporated into all ${totalQuestions} questions.` : ''}
 1. Each question must be ORIGINAL (not a variation of existing questions)
-2. Questions must align with ${stateStandards} standards for Grade ${gradeLevel}
+2. Questions must align with ${stateStandards} standards for ${gradeDisplay}
 3. Questions must focus on ${domain}${subSkill ? ', specifically targeting ' + subSkill : ''}
 ${standardCode ? `4. Questions must align with standard code: ${standardCode}` : '4. Questions should be appropriate for the specified grade level and domain'}
 5. Each question must have exactly 4 options
@@ -439,9 +548,14 @@ ${standardCode ? `4. Questions must align with standard code: ${standardCode}` :
 13. Medium questions must have at least 5-7 detailed steps
 14. Hard questions must have at least 7-10+ detailed steps
 15. DO NOT skip any arithmetic operations - show every calculation explicitly
-11. The 3 questions together must cover ALL key concepts of the sub-skill
+16. The ${totalQuestions} questions together must cover ALL key concepts of the sub-skill
+${!isDefaultCount ? `17. When generating multiple questions of the same difficulty level, ensure they are variations that test different aspects or applications while maintaining the same difficulty level` : ''}
+17. CRITICAL: Each question MUST include a "difficultyReasoning" field explaining why it is classified as Easy, Medium, or Hard
+18. CRITICAL: Each question MUST include a "scaffoldingExplanation" field explaining how it builds on previous questions and prepares for subsequent ones
+19. The "difficultyReasoning" should explain the cognitive demands, complexity level, and why this question fits the difficulty classification
+20. The "scaffoldingExplanation" should explain the pedagogical progression: how the Easy question establishes foundation, how Medium builds on Easy, and how Hard synthesizes concepts from both
 
-Generate 3 high-quality, curriculum-aligned base questions with proper scaffolding now.`
+Generate ${totalQuestions} high-quality, curriculum-aligned base questions with proper scaffolding now.`
 
   try {
     // Calculate tokens needed (generating 3 questions with scaffolding)
@@ -529,13 +643,30 @@ Generate 3 high-quality, curriculum-aligned base questions with proper scaffoldi
           else difficulty = 'Hard'
         }
         
+        // Determine which difficulty level this question should be based on position
+        let expectedDifficulty = 'Easy'
+        if (index < questionCounts.easy) {
+          expectedDifficulty = 'Easy'
+        } else if (index < questionCounts.easy + questionCounts.medium) {
+          expectedDifficulty = 'Medium'
+        } else {
+          expectedDifficulty = 'Hard'
+        }
+        
+        // Use the determined difficulty if the field is missing or invalid
+        if (!difficulty || !['Easy', 'Medium', 'Hard'].includes(difficulty)) {
+          difficulty = expectedDifficulty
+        }
+        
         // Ensure required fields
         const question: any = {
           difficulty: difficulty,
           question: q.question || `Question ${index + 1}`,
           options: Array.isArray(q.options) ? q.options : [],
           image: q.image || '',
-          solution: q.solution || ''
+          solution: q.solution || '',
+          difficultyReasoning: q.difficultyReasoning || '',
+          scaffoldingExplanation: q.scaffoldingExplanation || ''
         }
         
         // Ensure exactly 4 options
@@ -563,14 +694,24 @@ Generate 3 high-quality, curriculum-aligned base questions with proper scaffoldi
       throw new Error('No valid questions were generated. Please check the parameters and try again.')
     }
     
-    // Ensure we have exactly 3 questions after validation
-    if (validatedQuestions.length !== 3) {
+    // Ensure we have exactly the expected number of questions after validation
+    if (validatedQuestions.length !== totalQuestions) {
       const originalCount = questions.length
       const filteredCount = originalCount - validatedQuestions.length
+      const expectedText = `${questionCounts.easy} Easy, ${questionCounts.medium} Medium, ${questionCounts.hard} Hard`
       const errorMsg = filteredCount > 0
-        ? `Expected exactly 3 valid questions (Easy, Medium, Hard), but received ${originalCount} items with ${filteredCount} invalid item(s) filtered out, leaving ${validatedQuestions.length} valid question(s)`
-        : `Expected exactly 3 questions (Easy, Medium, Hard), but only ${validatedQuestions.length} were generated`
+        ? `Expected exactly ${totalQuestions} valid questions (${expectedText}), but received ${originalCount} items with ${filteredCount} invalid item(s) filtered out, leaving ${validatedQuestions.length} valid question(s)`
+        : `Expected exactly ${totalQuestions} questions (${expectedText}), but only ${validatedQuestions.length} were generated`
       throw new Error(errorMsg)
+    }
+    
+    // Verify difficulty distribution
+    const easyCount = validatedQuestions.filter((q: any) => q.difficulty === 'Easy').length
+    const mediumCount = validatedQuestions.filter((q: any) => q.difficulty === 'Medium').length
+    const hardCount = validatedQuestions.filter((q: any) => q.difficulty === 'Hard').length
+    
+    if (easyCount !== questionCounts.easy || mediumCount !== questionCounts.medium || hardCount !== questionCounts.hard) {
+      throw new Error(`Expected ${questionCounts.easy} Easy, ${questionCounts.medium} Medium, ${questionCounts.hard} Hard questions, but received ${easyCount} Easy, ${mediumCount} Medium, ${hardCount} Hard`)
     }
     
     // Sort by difficulty to ensure Easy, Medium, Hard order

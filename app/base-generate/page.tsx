@@ -8,6 +8,8 @@ interface Question {
   options: Array<{ text: string; logic: string }>
   image?: string
   solution?: string
+  difficultyReasoning?: string
+  scaffoldingExplanation?: string
 }
 
 export default function BaseGeneratePage() {
@@ -16,11 +18,15 @@ export default function BaseGeneratePage() {
   const [domain, setDomain] = useState('')
   const [subSkill, setSubSkill] = useState('')
   const [standardCode, setStandardCode] = useState('')
+  const [notes, setNotes] = useState('')
+  const [setOfQuestions, setSetOfQuestions] = useState('1')
   const [model, setModel] = useState('gpt-4o')
   const [loading, setLoading] = useState(false)
   const [questions, setQuestions] = useState<Question[]>([])
   const [error, setError] = useState('')
   const [copiedQuestionIndex, setCopiedQuestionIndex] = useState<number | null>(null)
+  const [showSolutionsByDefault, setShowSolutionsByDefault] = useState('hidden')
+  const [visibleSolutions, setVisibleSolutions] = useState<Set<number>>(new Set())
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,6 +46,8 @@ export default function BaseGeneratePage() {
           domain,
           subSkill,
           standardCode,
+          notes,
+          setOfQuestions,
           model,
         }),
       })
@@ -50,12 +58,32 @@ export default function BaseGeneratePage() {
         throw new Error(data.error || 'Failed to generate questions')
       }
 
-      setQuestions(data.questions || [])
+      const generatedQuestions = data.questions || []
+      setQuestions(generatedQuestions)
+      
+      // Initialize visible solutions based on default setting
+      if (showSolutionsByDefault === 'visible') {
+        setVisibleSolutions(new Set(generatedQuestions.map((_: Question, index: number) => index)))
+      } else {
+        setVisibleSolutions(new Set())
+      }
     } catch (err: any) {
       setError(err.message || 'An error occurred while generating questions')
     } finally {
       setLoading(false)
     }
+  }
+
+  const toggleSolution = (index: number) => {
+    setVisibleSolutions(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(index)) {
+        newSet.delete(index)
+      } else {
+        newSet.add(index)
+      }
+      return newSet
+    })
   }
 
   const formatQuestionForCopy = (question: Question): string => {
@@ -336,6 +364,61 @@ export default function BaseGeneratePage() {
                 />
               </div>
 
+              {/* Notes */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{
+                  fontSize: '0.95em',
+                  color: '#333',
+                  fontWeight: '500'
+                }}>
+                  Notes
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Enter any additional notes or instructions for question generation (optional)"
+                  rows={4}
+                  style={{
+                    padding: '12px',
+                    background: 'white',
+                    border: '1px solid #d4c1e8',
+                    borderRadius: '8px',
+                    color: '#333',
+                    fontSize: '1em',
+                    fontFamily: 'inherit',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+
+              {/* Set(s) of Questions */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{
+                  fontSize: '0.95em',
+                  color: '#333',
+                  fontWeight: '500'
+                }}>
+                  Set(s) of Questions
+                </label>
+                <select
+                  value={setOfQuestions}
+                  onChange={(e) => setSetOfQuestions(e.target.value)}
+                  style={{
+                    padding: '12px',
+                    background: 'white',
+                    border: '1px solid #d4c1e8',
+                    borderRadius: '8px',
+                    color: '#333',
+                    fontSize: '1em',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
+              </div>
+
               {/* Model Selection */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <label style={{
@@ -368,6 +451,33 @@ export default function BaseGeneratePage() {
                     <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                     <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                   </optgroup>
+                </select>
+              </div>
+
+              {/* Solution Visibility */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{
+                  fontSize: '0.95em',
+                  color: '#333',
+                  fontWeight: '500'
+                }}>
+                  Solution Visibility
+                </label>
+                <select
+                  value={showSolutionsByDefault}
+                  onChange={(e) => setShowSolutionsByDefault(e.target.value)}
+                  style={{
+                    padding: '12px',
+                    background: 'white',
+                    border: '1px solid #d4c1e8',
+                    borderRadius: '8px',
+                    color: '#333',
+                    fontSize: '1em',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="hidden">Hidden by default (use View solution button)</option>
+                  <option value="visible">Visible by default</option>
                 </select>
               </div>
 
@@ -496,6 +606,48 @@ export default function BaseGeneratePage() {
                         </button>
                       </div>
                     </h3>
+                    {question.difficultyReasoning && (
+                      <div style={{
+                        marginBottom: '15px',
+                        padding: '12px',
+                        background: '#e3f2fd',
+                        borderRadius: '6px',
+                        border: '1px solid #90caf9'
+                      }}>
+                        <strong style={{ color: '#1976d2', display: 'block', marginBottom: '6px', fontSize: '0.95em' }}>
+                          Why {question.difficulty}?
+                        </strong>
+                        <p style={{
+                          fontSize: '0.9em',
+                          lineHeight: '1.6',
+                          color: '#333',
+                          margin: 0
+                        }}>
+                          {question.difficultyReasoning}
+                        </p>
+                      </div>
+                    )}
+                    {question.scaffoldingExplanation && (
+                      <div style={{
+                        marginBottom: '15px',
+                        padding: '12px',
+                        background: '#f3e5f5',
+                        borderRadius: '6px',
+                        border: '1px solid #ce93d8'
+                      }}>
+                        <strong style={{ color: '#7b1fa2', display: 'block', marginBottom: '6px', fontSize: '0.95em' }}>
+                          Learning Progression:
+                        </strong>
+                        <p style={{
+                          fontSize: '0.9em',
+                          lineHeight: '1.6',
+                          color: '#333',
+                          margin: 0
+                        }}>
+                          {question.scaffoldingExplanation}
+                        </p>
+                      </div>
+                    )}
                     <p style={{
                       fontSize: '1em',
                       lineHeight: '1.6',
@@ -532,6 +684,37 @@ export default function BaseGeneratePage() {
                       </ul>
                     </div>
                     {question.solution && (
+                      <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'flex-start' }}>
+                        <button
+                          onClick={() => toggleSolution(index)}
+                          style={{
+                            padding: '8px 16px',
+                            background: visibleSolutions.has(index) ? '#ff9800' : '#5a2d7a',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            fontSize: '0.9em',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s',
+                            whiteSpace: 'nowrap'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!visibleSolutions.has(index)) {
+                              e.currentTarget.style.background = '#764ba2'
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!visibleSolutions.has(index)) {
+                              e.currentTarget.style.background = '#5a2d7a'
+                            }
+                          }}
+                        >
+                          {visibleSolutions.has(index) ? 'Hide solution' : 'View solution'}
+                        </button>
+                      </div>
+                    )}
+                    {question.solution && visibleSolutions.has(index) && (
                       <div style={{
                         marginTop: '15px',
                         padding: '15px',
