@@ -569,23 +569,25 @@ Apply These Additional Requirements:
 Structure your descriptions clearly using this template:
 
 FOR TABLES, DOT PLOTS, LINE PLOTS, BAR CHARTS, and other structured data:
-- Present data in a clear tabular format using markdown table syntax:
+- Present data in a clear tabular format using HTML table tags:
   Example for a table:
   "The image shows a data table:
-  | Category | Value | Percentage |
-  |----------|-------|------------|
-  | A        | 25    | 25%        |
-  | B        | 30    | 30%        |
-  | C        | 45    | 45%        |"
+  <table>
+  <tr><th>Category</th><th>Value</th><th>Percentage</th></tr>
+  <tr><td>A</td><td>25</td><td>25%</td></tr>
+  <tr><td>B</td><td>30</td><td>30%</td></tr>
+  <tr><td>C</td><td>45</td><td>45%</td></tr>
+  </table>"
 
   Example for a dot plot or line plot:
   "The image shows a line graph with the following data points:
-  | x | y | Label |
-  |---|---|-------|
-  | 0 | 2 | Start |
-  | 1 | 4 |       |
-  | 2 | 6 |       |
-  | 3 | 8 | End   |
+  <table>
+  <tr><th>x</th><th>y</th><th>Label</th></tr>
+  <tr><td>0</td><td>2</td><td>Start</td></tr>
+  <tr><td>1</td><td>4</td><td></td></tr>
+  <tr><td>2</td><td>6</td><td></td></tr>
+  <tr><td>3</td><td>8</td><td>End</td></tr>
+  </table>
   The graph has x-axis labeled 'Time (hours)' and y-axis labeled 'Distance (miles)'."
 
 FOR GEOMETRIC SHAPES, DIAGRAMS, and non-tabular visuals:

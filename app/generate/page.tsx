@@ -2,6 +2,7 @@
 
 import { useState, Suspense, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
+import DOMPurify from 'dompurify'
 
 interface Question {
   question: string
@@ -35,6 +36,13 @@ function GeneratePageContent() {
   const [copiedSelected, setCopiedSelected] = useState(false)
   const [copiedAll, setCopiedAll] = useState(false)
   const [verificationMessage, setVerificationMessage] = useState<{index: number, message: string, type: 'success' | 'error'} | null>(null)
+  const [showTableBuilder, setShowTableBuilder] = useState(false)
+  const [tableData, setTableData] = useState<{rows: number, cols: number, data: string[][]}>({
+    rows: 2,
+    cols: 2,
+    data: [['', ''], ['', '']]
+  })
+  const [hasHeader, setHasHeader] = useState(true)
   
   const pageTitle = questionType === 'mathematical' 
     ? 'Mathematical Questions Generator'
@@ -118,6 +126,100 @@ function GeneratePageContent() {
     
     // Default to 4 if no options detected
     return 4
+  }
+  
+  // Table Builder Functions
+  const initializeTable = (rows: number, cols: number) => {
+    const data: string[][] = []
+    for (let i = 0; i < rows; i++) {
+      data.push(Array(cols).fill(''))
+    }
+    return data
+  }
+  
+  const addTableRow = () => {
+    const newRows = tableData.rows + 1
+    const newData = [...tableData.data, Array(tableData.cols).fill('')]
+    setTableData({ ...tableData, rows: newRows, data: newData })
+  }
+  
+  const removeTableRow = () => {
+    if (tableData.rows > 1) {
+      const newRows = tableData.rows - 1
+      const newData = tableData.data.slice(0, -1)
+      setTableData({ ...tableData, rows: newRows, data: newData })
+    }
+  }
+  
+  const addTableColumn = () => {
+    const newCols = tableData.cols + 1
+    const newData = tableData.data.map(row => [...row, ''])
+    setTableData({ ...tableData, cols: newCols, data: newData })
+  }
+  
+  const removeTableColumn = () => {
+    if (tableData.cols > 1) {
+      const newCols = tableData.cols - 1
+      const newData = tableData.data.map(row => row.slice(0, -1))
+      setTableData({ ...tableData, cols: newCols, data: newData })
+    }
+  }
+  
+  const updateTableCell = (rowIndex: number, colIndex: number, value: string) => {
+    const newData = [...tableData.data]
+    newData[rowIndex][colIndex] = value
+    setTableData({ ...tableData, data: newData })
+  }
+  
+  const convertTableToHTML = (): string => {
+    let html = 'The image shows a data table:\n<table>\n'
+    
+    // Add header row if hasHeader is true
+    if (hasHeader && tableData.data.length > 0) {
+      html += '<tr>'
+      tableData.data[0].forEach(cell => {
+        html += `<th>${cell || 'Header'}</th>`
+      })
+      html += '</tr>\n'
+      
+      // Add data rows (skip first row if it's a header)
+      for (let i = 1; i < tableData.data.length; i++) {
+        html += '<tr>'
+        tableData.data[i].forEach(cell => {
+          html += `<td>${cell || ''}</td>`
+        })
+        html += '</tr>\n'
+      }
+    } else {
+      // No header, all rows are data rows
+      tableData.data.forEach(row => {
+        html += '<tr>'
+        row.forEach(cell => {
+          html += `<td>${cell || ''}</td>`
+        })
+        html += '</tr>\n'
+      })
+    }
+    
+    html += '</table>'
+    return html
+  }
+  
+  const insertTableIntoImageDescription = () => {
+    const tableHTML = convertTableToHTML()
+    const currentValue = images.trim()
+    const newValue = currentValue ? `${currentValue}\n\n${tableHTML}` : tableHTML
+    setImages(newValue)
+    setShowTableBuilder(false)
+  }
+  
+  const resetTableBuilder = () => {
+    setTableData({
+      rows: 2,
+      cols: 2,
+      data: [['', ''], ['', '']]
+    })
+    setHasHeader(true)
   }
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -749,13 +851,74 @@ function GeneratePageContent() {
             <>
             <div className="form-group">
                 <label htmlFor="images">Image Description (if any)</label>
-              <input
-                type="text"
-                id="images"
-                value={images}
-                onChange={(e) => setImages(e.target.value)}
-                  placeholder="Enter image description or URLs (comma-separated)"
-              />
+              <div style={{
+                border: '2px solid #e0e0e0',
+                borderRadius: '8px',
+                padding: '12px',
+                backgroundColor: '#fff',
+                transition: 'border-color 0.3s'
+              }}>
+                {/* Toolbar for Image Description */}
+                <div style={{
+                  display: 'flex',
+                  gap: '8px',
+                  marginBottom: '10px',
+                  paddingBottom: '10px',
+                  borderBottom: '1px solid #e0e0e0',
+                  flexWrap: 'wrap',
+                  alignItems: 'center'
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowTableBuilder(true)}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      backgroundColor: '#fff',
+                      color: '#5a2d7a',
+                      border: '1px solid #5a2d7a',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      height: '28px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      whiteSpace: 'nowrap'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#e6d5f7'
+                      e.currentTarget.style.borderColor = '#5a2d7a'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#fff'
+                      e.currentTarget.style.borderColor = '#5a2d7a'
+                    }}
+                    title="Build HTML Table"
+                  >
+                    📊 Build Table
+                  </button>
+                </div>
+                
+                <textarea
+                  id="images"
+                  value={images}
+                  onChange={(e) => setImages(e.target.value)}
+                  placeholder="Enter image description or URLs (comma-separated). Use the Table Builder button above to create HTML tables."
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    border: 'none',
+                    outline: 'none',
+                    resize: 'vertical',
+                    fontFamily: 'monospace',
+                    fontSize: '13px',
+                    padding: '0',
+                    backgroundColor: 'transparent'
+                  }}
+                />
+              </div>
             </div>
           
           <div className="form-group">
@@ -1065,7 +1228,13 @@ function GeneratePageContent() {
                       color: '#555',
                       fontStyle: 'italic'
                     }}>
-                      <strong>Image Description:</strong> {question.image}
+                      <strong>Image Description:</strong>{' '}
+                      <span dangerouslySetInnerHTML={{ 
+                        __html: DOMPurify.sanitize(question.image, {
+                          ALLOWED_TAGS: ['table', 'tr', 'td', 'th', 'thead', 'tbody', 'tfoot'],
+                          ALLOWED_ATTR: ['style', 'class', 'colspan', 'rowspan']
+                        })
+                      }} />
                     </div>
                   )}
                   {question.options && question.options.length > 0 && (
@@ -1144,6 +1313,191 @@ function GeneratePageContent() {
                   )}
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Table Builder Modal */}
+        {showTableBuilder && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: '20px'
+            }}
+            onClick={() => setShowTableBuilder(false)}
+          >
+            <div
+              style={{
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                padding: '30px',
+                maxHeight: '90vh',
+                overflow: 'auto',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+                width: '100%',
+                maxWidth: '800px'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h2 style={{ margin: 0, color: '#5a2d7a' }}>📊 Table Builder</h2>
+                <button
+                  onClick={() => {
+                    setShowTableBuilder(false)
+                    resetTableBuilder()
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '24px',
+                    cursor: 'pointer',
+                    color: '#666',
+                    padding: '0',
+                    lineHeight: '1'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                  <input
+                    type="checkbox"
+                    checked={hasHeader}
+                    onChange={(e) => setHasHeader(e.target.checked)}
+                  />
+                  <span>First row is header</span>
+                </label>
+              </div>
+              
+              <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={addTableRow}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '14px', padding: '8px 16px' }}
+                >
+                  + Add Row
+                </button>
+                <button
+                  type="button"
+                  onClick={removeTableRow}
+                  className="btn btn-secondary"
+                  disabled={tableData.rows <= 1}
+                  style={{ fontSize: '14px', padding: '8px 16px' }}
+                >
+                  - Remove Row
+                </button>
+                <button
+                  type="button"
+                  onClick={addTableColumn}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '14px', padding: '8px 16px' }}
+                >
+                  + Add Column
+                </button>
+                <button
+                  type="button"
+                  onClick={removeTableColumn}
+                  className="btn btn-secondary"
+                  disabled={tableData.cols <= 1}
+                  style={{ fontSize: '14px', padding: '8px 16px' }}
+                >
+                  - Remove Column
+                </button>
+              </div>
+              
+              <div style={{ marginBottom: '20px', overflowX: 'auto' }}>
+                <table
+                  style={{
+                    width: '100%',
+                    borderCollapse: 'collapse',
+                    border: '2px solid #5a2d7a'
+                  }}
+                >
+                  <tbody>
+                    {tableData.data.map((row, rowIndex) => (
+                      <tr key={rowIndex}>
+                        {row.map((cell, colIndex) => {
+                          const isHeaderCell = hasHeader && rowIndex === 0
+                          return (
+                            <td
+                              key={colIndex}
+                              style={{
+                                border: '1px solid #ddd',
+                                padding: '8px',
+                                backgroundColor: isHeaderCell ? '#f0f0f0' : 'white',
+                                fontWeight: isHeaderCell ? 'bold' : 'normal'
+                              }}
+                            >
+                              <input
+                                type="text"
+                                value={cell}
+                                onChange={(e) => updateTableCell(rowIndex, colIndex, e.target.value)}
+                                placeholder={isHeaderCell ? 'Header' : 'Cell'}
+                                style={{
+                                  width: '100%',
+                                  border: 'none',
+                                  outline: 'none',
+                                  padding: '4px',
+                                  fontSize: '14px',
+                                  backgroundColor: 'transparent'
+                                }}
+                              />
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
+                <strong style={{ display: 'block', marginBottom: '10px' }}>Preview:</strong>
+                <div
+                  style={{
+                    fontSize: '12px',
+                    color: '#666',
+                    fontFamily: 'monospace',
+                    whiteSpace: 'pre-wrap',
+                    maxHeight: '150px',
+                    overflow: 'auto'
+                  }}
+                >
+                  {convertTableToHTML()}
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTableBuilder(false)
+                    resetTableBuilder()
+                  }}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={insertTableIntoImageDescription}
+                  className="btn btn-primary"
+                >
+                  Insert Table
+                </button>
+              </div>
             </div>
           </div>
         )}

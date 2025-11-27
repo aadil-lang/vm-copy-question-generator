@@ -108,22 +108,22 @@ export async function analyzeImageWithGemini(
 - Scale, units, and reference points
 
 IMPORTANT FOR STRUCTURED DATA:
-- If the image contains a TABLE: Present the data in a clear tabular format with rows and columns
-- If the image contains a DOT PLOT or LINE PLOT: Extract the data points and present them in a table format with columns for x-values, y-values, and any labels
-- If the image contains a BAR CHART or HISTOGRAM: Present the data in a table format with categories and values
-- For tables: Use a format like:
-  Table:
-  | Column1 | Column2 | Column3 |
-  |---------|---------|---------|
-  | Value1  | Value2  | Value3   |
-  | Value4  | Value5  | Value6   |
+- If the image contains a TABLE: Present the data in a clear tabular format using HTML table tags
+- If the image contains a DOT PLOT or LINE PLOT: Extract the data points and present them in HTML table format with columns for x-values, y-values, and any labels
+- If the image contains a BAR CHART or HISTOGRAM: Present the data in HTML table format with categories and values
+- For tables: Use HTML table tags like:
+  <table>
+  <tr><th>Column1</th><th>Column2</th><th>Column3</th></tr>
+  <tr><td>Value1</td><td>Value2</td><td>Value3</td></tr>
+  <tr><td>Value4</td><td>Value5</td><td>Value6</td></tr>
+  </table>
 
-- For plots with data points: Use a format like:
-  Data Points:
-  | x | y | Label |
-  |---|---|-------|
-  | 1 | 2 | Point A |
-  | 3 | 4 | Point B |
+- For plots with data points: Use HTML table tags like:
+  <table>
+  <tr><th>x</th><th>y</th><th>Label</th></tr>
+  <tr><td>1</td><td>2</td><td>Point A</td></tr>
+  <tr><td>3</td><td>4</td><td>Point B</td></tr>
+  </table>
 
 - For other visual elements (geometric shapes, graphs without tables): Use descriptive text format
 
