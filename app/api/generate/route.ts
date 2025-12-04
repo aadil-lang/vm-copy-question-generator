@@ -538,12 +538,27 @@ Before finalizing each question, verify:
 - If SME notes specify scenarios/contexts, does this question incorporate them?
 - Have I followed EVERY instruction in the SME notes, not just some of them?
 - CRITICAL: Before marking any option as "CA", have I checked that it matches ALL SME notes format requirements?
+${isImageBased && ((notes && notes.toLowerCase().includes('table')) || (images && images.toLowerCase().includes('<table>')) || (baseQuestion && baseQuestion.toLowerCase().includes('table'))) ? `- CRITICAL: If SME notes specify table variation instructions, have I applied them to ALL table values in this question?
+- CRITICAL: Are the table values in the specified range/format from SME notes (e.g., Easy: 1-20, Medium: 21-50, Hard: 51-100)?
+- CRITICAL: Does this table have different values from the base question and all other generated questions?
+- CRITICAL: If SME notes specify row count variations, does this table have the correct number of rows?
+- CRITICAL: If SME notes specify value constraints (multiples, even numbers, etc.), do all table values meet those constraints?
+- CRITICAL: If percentages are used in the table, do they sum to 100% as required?
+- CRITICAL: Have I maintained the same table structure (columns, headers) as the base question unless SME notes specify otherwise?` : ''}
+${isImageBased && ((notes && notes.toLowerCase().includes('chart')) || (images && (images.toLowerCase().includes('bar chart') || images.toLowerCase().includes('line graph') || images.toLowerCase().includes('dot plot') || images.toLowerCase().includes('scatter plot') || images.toLowerCase().includes('histogram')))) ? `- CRITICAL: Does this question's image description start with the SAME chart type as the base question?
+- CRITICAL: If base question says "The image shows a line graph", does this copy also say "The image shows a line graph" (NOT "table" or other chart type)?
+- CRITICAL: If base question says "The image shows a bar chart", does this copy also say "The image shows a bar chart" (NOT "table" or "line graph")?
+- CRITICAL: Have I preserved the exact chart type from the base question?
+- CRITICAL: Have I NOT converted a chart to a table?` : ''}
 
 SPECIFIC EXAMPLES OF SME NOTES FORMAT REQUIREMENTS:
 - If SME notes say "answer should be a mixed number": The correct answer MUST be like "2 1/3" or "5 2/7", NOT "7/3" or "2.33"
 - If SME notes say "answer should be simplified": The correct answer MUST be in simplest form (e.g., "3/4" not "6/8")
 - If SME notes say "answer should be an improper fraction": The correct answer MUST be an improper fraction (e.g., "7/3" not "2 1/3")
 - If SME notes specify any other format, the correct answer MUST follow it exactly
+${isImageBased && ((notes && notes.toLowerCase().includes('table')) || (images && images.toLowerCase().includes('<table>')) || (baseQuestion && baseQuestion.toLowerCase().includes('table'))) ? `- If SME notes specify table variations (e.g., "Easy: 1-20, Medium: 21-50, Hard: 51-100"), the table values MUST be within those ranges
+- If SME notes specify "table values should be multiples of 5", ALL table values MUST be multiples of 5
+- If SME notes specify row count (e.g., "Easy: 3 rows"), the table MUST have exactly that number of rows` : ''}
 
 CRITICAL: These are the ONLY SME notes for this request. Do NOT use any notes from previous requests or conversations.
 ${'='.repeat(80)}\n` : '\nTIER 3: SME NOTES - None provided.\nCRITICAL: There are NO SME notes for this request. Do NOT use any notes from previous requests or conversations.\nProceed with Tiers 1 and 2 only. Ignore any notes that may have been mentioned in previous interactions.\n'}
@@ -724,14 +739,102 @@ Each distractor MUST have logic explaining VISUAL MISINTERPRETATION:
 
 10. Image Variation Requirements (CRITICAL - MUST FOLLOW BASE QUESTION STRUCTURE)
 - Each of the ${numQuestions} questions MUST have a DIFFERENT image description
-- CRITICAL: ALL generated images must be the SAME TYPE as the base question (triangle → triangles, graph → graphs, table → tables)
+- CRITICAL: ALL generated images must be the SAME TYPE as the base question (triangle → triangles, graph → graphs, table → tables, chart → charts)
 - CRITICAL: ALL generated questions must ask the SAME TYPE of question as the base (area → area, angle → angle, value → value)
-- ONLY change the numerical values in the image description (measurements, angles, coordinates, table values)
+- CRITICAL: If the base question contains a TABLE, ALL ${numQuestions} copy questions MUST contain TABLES
+- CRITICAL: If the base question contains a CHART (bar chart, line graph, dot plot, scatter plot, histogram), ALL ${numQuestions} copy questions MUST contain CHARTS of the SAME TYPE
+- CRITICAL: The FIRST sentence of the image description determines the visual type - you MUST match it exactly
+- CRITICAL: If base question image description starts with "The image shows a bar chart", ALL copy questions MUST start with "The image shows a bar chart" (NOT "The image shows a table" or "The image shows a data table")
+- CRITICAL: If base question image description starts with "The image shows a line graph", ALL copy questions MUST start with "The image shows a line graph" (NOT "The image shows a table" or "The image shows a data table")
+- CRITICAL: If base question image description starts with "The image shows a dot plot", ALL copy questions MUST start with "The image shows a dot plot" (NOT "The image shows a table")
+- CRITICAL: If base question image description starts with "The image shows a scatter plot", ALL copy questions MUST start with "The image shows a scatter plot" (NOT "The image shows a table")
+- CRITICAL: If base question image description starts with "The image shows a histogram", ALL copy questions MUST start with "The image shows a histogram" (NOT "The image shows a table" or "The image shows a bar chart")
+- CRITICAL: DO NOT convert charts to tables - if the base question has a chart description, preserve the chart type in ALL copies
+- CRITICAL: The opening sentence of the image description determines the visual type - match it exactly
+- CRITICAL: If the base question contains a TABLE in HTML format (<table> tags), ALL copy questions MUST contain TABLES in HTML format
+- CRITICAL: If the base question contains a CHART description (with table tags for chart data), ALL copy questions MUST contain CHART descriptions with table tags
+- ONLY change the numerical values in the image description (measurements, angles, coordinates, table values, chart data points)
 - Maintain the same visual structure, labels, and format as the base question
 - Ensure all images are mathematically valid and consistent with their descriptions
 - Do NOT repeat the same image description across questions
 - Do NOT change the image type, question type, or add new visual elements not in the base question
+- Do NOT remove tables or charts from copy questions if they exist in the base question
+- Do NOT add tables or charts to copy questions if they don't exist in the base question
 - Use the base question's image description as a template - follow its exact structure and format
+
+10.5. Table and Chart Preservation Requirements (CRITICAL - FOR QUESTIONS WITH TABLES OR CHARTS)
+${(notes && (notes.toLowerCase().includes('table') || notes.toLowerCase().includes('chart'))) || (images && (images.toLowerCase().includes('<table>') || images.toLowerCase().includes('chart') || images.toLowerCase().includes('bar chart') || images.toLowerCase().includes('line graph') || images.toLowerCase().includes('dot plot') || images.toLowerCase().includes('scatter plot') || images.toLowerCase().includes('histogram'))) || (baseQuestion && (baseQuestion.toLowerCase().includes('table') || baseQuestion.toLowerCase().includes('chart'))) || (images && images.match(/The image shows a (bar chart|line graph|dot plot|scatter plot|histogram)/i)) ? `- CRITICAL: This question involves a TABLE or CHART, and SME notes may contain variation instructions
+- CRITICAL: FIRST, identify the chart type from the base question's image description by looking at the FIRST sentence
+- CRITICAL: Check if the base question image description starts with one of these EXACT phrases:
+  * "The image shows a bar chart" → ALL copies must say "The image shows a bar chart"
+  * "The image shows a line graph" → ALL copies must say "The image shows a line graph"
+  * "The image shows a dot plot" → ALL copies must say "The image shows a dot plot"
+  * "The image shows a scatter plot" → ALL copies must say "The image shows a scatter plot"
+  * "The image shows a histogram" → ALL copies must say "The image shows a histogram"
+  * "The image shows a data table" or just "<table>" → ALL copies must have tables
+- CRITICAL: If the base question image description contains a TABLE (HTML <table> tags), ALL ${numQuestions} copy questions MUST contain TABLES with the same structure
+- CRITICAL: If the base question image description contains a CHART (bar chart, line graph, dot plot, scatter plot, or histogram with table data), ALL ${numQuestions} copy questions MUST contain CHARTS of the SAME TYPE
+- CRITICAL: Preserve the table/chart structure: If base has a table with 3 columns, all copies should have tables with 3 columns
+- CRITICAL: Preserve the chart type: If base has a bar chart, all copies should have bar charts (NOT line graphs or other types)
+- CRITICAL: Preserve the chart type: If base has a line graph, all copies should have line graphs (NOT bar charts, NOT tables)
+- CRITICAL: Preserve HTML table format: If base uses <table> tags, all copies must use <table> tags
+- CRITICAL: Preserve chart description format: If base describes a chart with "The image shows a bar chart..." and includes a table, all copies must follow the same format
+- CRITICAL: Preserve chart description format: If base describes a chart with "The image shows a line graph..." and includes a table, all copies must follow the same format
+- EXAMPLE OF CORRECT CHART PRESERVATION:
+  Base question image: "The image shows a line graph titled 'Sales by Month'.\nThe x-axis is labeled 'Month' and y-axis is labeled 'Sales ($)'.\nThe data points are:\n<table>..."
+  ✅ CORRECT copy: "The image shows a line graph titled 'Revenue by Quarter'.\nThe x-axis is labeled 'Quarter' and y-axis is labeled 'Revenue ($)'.\nThe data points are:\n<table>..."
+  ❌ WRONG copy: "The image shows a data table:\n<table>..." (This is WRONG - it's a table, not a line graph)
+  ❌ WRONG copy: "The image shows a bar chart..." (This is WRONG - base has line graph, copy must have line graph)
+- CRITICAL: Always check the FIRST sentence of the base question's image description - if it says "bar chart", "line graph", "dot plot", "scatter plot", or "histogram", your copy MUST also say the same chart type
+- CRITICAL: You MUST follow ALL table variation instructions specified in SME notes (if provided)
+- Table variation instructions in SME notes may specify:
+  * Value ranges for different difficulty levels (e.g., "Easy: 1-20", "Medium: 21-50", "Hard: 51-100")
+  * Number types (e.g., "Use whole numbers only", "Include decimals", "Use percentages", "Use fractions")
+  * Column variations (e.g., "Vary category names", "Keep same column structure", "Change column headers")
+  * Row count variations (e.g., "Easy: 3 rows", "Medium: 4 rows", "Hard: 5 rows")
+  * Value constraints (e.g., "Values should be multiples of 5", "Use even numbers only", "Values between 10-100")
+  * Mathematical relationships (e.g., "Percentages must sum to 100%", "Values must be consistent with totals")
+- When generating tables:
+  * Parse and apply ALL variation instructions from SME notes
+  * Ensure each of the ${numQuestions} questions has DIFFERENT table values
+  * Maintain the same table structure (columns, headers) as the base question unless SME notes specify otherwise
+  * Only vary the data values according to SME notes specifications
+  * If SME notes specify difficulty-based ranges, apply them based on the question's difficulty level
+- When generating charts:
+  * CRITICAL: First, identify the chart type from the base question's image description
+  * CRITICAL: Look for these EXACT phrases in the FIRST sentence of the base question image description:
+    - "The image shows a bar chart" → ALL copies must say "The image shows a bar chart"
+    - "The image shows a line graph" → ALL copies must say "The image shows a line graph"
+    - "The image shows a dot plot" → ALL copies must say "The image shows a dot plot"
+    - "The image shows a scatter plot" → ALL copies must say "The image shows a scatter plot"
+    - "The image shows a histogram" → ALL copies must say "The image shows a histogram"
+  * CRITICAL: If base question has a bar chart, ALL ${numQuestions} copy questions MUST have bar charts
+  * CRITICAL: If base question has a line graph, ALL ${numQuestions} copy questions MUST have line graphs
+  * CRITICAL: If base question has a dot plot, ALL ${numQuestions} copy questions MUST have dot plots
+  * CRITICAL: If base question has a scatter plot, ALL ${numQuestions} copy questions MUST have scatter plots
+  * CRITICAL: If base question has a histogram, ALL ${numQuestions} copy questions MUST have histograms
+  * CRITICAL: DO NOT generate "The image shows a data table" when the base says "The image shows a line graph"
+  * CRITICAL: DO NOT generate "The image shows a data table" when the base says "The image shows a bar chart"
+  * CRITICAL: DO NOT change chart types - if base has line graph, copies must have line graph (NOT bar chart, NOT table)
+  * CRITICAL: DO NOT change chart types - if base has bar chart, copies must have bar chart (NOT line graph, NOT table)
+  * Maintain the same chart structure (axis labels, title format) as the base question
+  * Only vary the data points/values in the chart, NOT the chart type
+  * Preserve the chart description format (e.g., "The image shows a line graph..." followed by table data)
+  * Preserve the chart description format (e.g., "The image shows a bar chart..." followed by table data)
+  * Ensure each of the ${numQuestions} questions has DIFFERENT chart data values
+- Examples of SME notes for table variations:
+  * "Table variations: Easy questions use values 1-20, Medium: 21-50, Hard: 51-100"
+  * "Table values should be multiples of 5 and whole numbers only"
+  * "Vary category names (A, B, C can become X, Y, Z) but keep same column structure"
+  * "Easy: 3 rows, Medium: 4 rows, Hard: 5 rows. All values should be between 10-100"
+  * "Keep same columns (Category, Value, Percentage). Vary values but ensure percentages sum to 100%"
+- CRITICAL: If SME notes specify table variations, you MUST follow them exactly
+- CRITICAL: Each generated table must have unique values that differ from:
+  * The base question's table values
+  * All other generated questions' table values
+- CRITICAL: Maintain mathematical consistency (e.g., if percentages are used, they should sum correctly)
+- If no table variation instructions are in SME notes, vary values naturally while maintaining the same structure` : `- For questions with tables: Vary numerical values while maintaining the same table structure and column headers as the base question
+- Ensure each generated table has different values from the base question and other generated questions`}
 
 11. Context Diversity for Image-Based Questions (CRITICAL - FOR WORD PROBLEMS WITH CONTEXT)
 ${baseQuestion.match(/context|scenario|situation|story|real-world|real life|everyday|daily|life|has|bought|sold|traveled|drove|walked|ran|spent|earned|saved|collected|gathered|planted|harvested|baked|cooked|made|built|painted|drew|wrote|read|studied|played|won|lost|gave|received|shared|divided|combined|mixed|poured|filled|emptied|weighed|measured|counted|found|discovered|created|designed|constructed/i) ? `- CRITICAL: The base question contains a context/scenario/story (word problem format)
@@ -909,6 +1012,8 @@ QUALITY CHECKLIST (Self-Verify Before Finalizing):
 ✅ ${isImageBased ? 'CRITICAL: Only numerical values changed, not image structure or question type' : ''}
 ✅ ${isImageBased ? 'CRITICAL: All measurements in image description are mathematically correct (triangle angles sum to 180°, Law of Sines/Cosines satisfied, etc.)' : ''}
 ✅ ${isImageBased ? '' : 'CRITICAL: Each copy question has a DIFFERENT correct answer value than the base question - verify this!'}
+${isImageBased && ((notes && notes.toLowerCase().includes('table')) || (images && images.toLowerCase().includes('<table>')) || (baseQuestion && baseQuestion.toLowerCase().includes('table'))) ? '✅ CRITICAL: If SME notes specify table variation instructions, ALL table values follow those specifications (ranges, constraints, row counts, etc.)\n✅ CRITICAL: Table values are different from the base question and all other generated questions\n✅ CRITICAL: Table structure (columns, headers) matches the base question unless SME notes specify otherwise\n✅ CRITICAL: If percentages are in the table, they sum to 100% correctly\n' : ''}
+${isImageBased && ((notes && notes.toLowerCase().includes('chart')) || (images && (images.toLowerCase().includes('bar chart') || images.toLowerCase().includes('line graph') || images.toLowerCase().includes('dot plot') || images.toLowerCase().includes('scatter plot') || images.toLowerCase().includes('histogram')))) ? '✅ CRITICAL: Chart type matches base question (line graph → line graphs, bar chart → bar charts, etc.)\n✅ CRITICAL: Image description starts with the same chart type phrase as base question\n✅ CRITICAL: Chart has NOT been converted to a table\n✅ CRITICAL: Chart data values are different from base question and other generated questions\n' : ''}
 ✅ CRITICAL: ALL SME notes (if provided) have been followed PRECISELY - verify each requirement individually
 ✅ CRITICAL: Solution is COMPLETE with ALL steps shown - verify no steps are skipped
 ✅ CRITICAL: Solution is formatted with each step on a new line for readability

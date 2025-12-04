@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Prevent accidental inclusion of files from other projects with absolute paths
+/Users/
+/*/math-question-analyzer/
+**/math-question-analyzer/

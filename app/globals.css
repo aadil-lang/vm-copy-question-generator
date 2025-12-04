@@ -446,28 +446,32 @@ main {
 
 /* Table styling for image descriptions */
 .image-description table {
-  width: 100%;
+  max-width: 70%;
+  width: auto;
   border-collapse: collapse;
   margin: 10px 0;
   font-style: normal;
   background: white;
   border-radius: 4px;
   overflow: hidden;
+  font-size: 0.9em;
 }
 
 .image-description table th {
   background: #5a2d7a;
   color: white;
-  padding: 8px 12px;
+  padding: 5px 8px;
   text-align: left;
   font-weight: 600;
   border: 1px solid #4a1d6a;
+  font-size: 0.9em;
 }
 
 .image-description table td {
-  padding: 8px 12px;
+  padding: 5px 8px;
   border: 1px solid #e0e0e0;
   background: #f9f9f9;
+  font-size: 0.9em;
 }
 
 .image-description table tr:nth-child(even) td {

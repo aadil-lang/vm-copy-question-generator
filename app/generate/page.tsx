@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, Suspense, useEffect } from 'react'
+import React, { useState, Suspense, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import DOMPurify from 'dompurify'
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ScatterChart, Scatter } from 'recharts'
 
 interface Question {
   question: string
@@ -43,6 +44,39 @@ function GeneratePageContent() {
     data: [['', ''], ['', '']]
   })
   const [hasHeader, setHasHeader] = useState(true)
+  const [showChartBuilder, setShowChartBuilder] = useState(false)
+  const [chartType, setChartType] = useState<'bar' | 'line' | 'dot' | 'scatter'>('bar')
+  const [chartData, setChartData] = useState<Array<{name: string, value: number, label?: string}>>([
+    { name: 'A', value: 10 },
+    { name: 'B', value: 20 }
+  ])
+  const [chartTitle, setChartTitle] = useState('')
+  const [xAxisLabel, setXAxisLabel] = useState('')
+  const [yAxisLabel, setYAxisLabel] = useState('')
+  const [yAxisMin, setYAxisMin] = useState<number | undefined>(undefined)
+  const [yAxisMax, setYAxisMax] = useState<number | undefined>(undefined)
+  const [showShapeBuilder, setShowShapeBuilder] = useState(false)
+  const [shapeType, setShapeType] = useState<'triangle' | 'circle' | 'rectangle' | 'polygon'>('triangle')
+  const [shapeData, setShapeData] = useState<any>({
+    // Triangle
+    sideA: 3,
+    sideB: 4,
+    sideC: 5,
+    angleA: 90,
+    angleB: 53.13,
+    angleC: 36.87,
+    type: 'right',
+    // Circle
+    radius: 5,
+    diameter: 10,
+    // Rectangle
+    width: 6,
+    height: 4,
+    // Polygon
+    sides: 5,
+    sideLength: 3,
+    isRegular: true
+  })
   
   const pageTitle = questionType === 'mathematical' 
     ? 'Mathematical Questions Generator'
@@ -222,6 +256,559 @@ function GeneratePageContent() {
     setHasHeader(true)
   }
   
+  // Chart Builder Functions
+  const addChartDataPoint = () => {
+    setChartData([...chartData, { name: `Item ${chartData.length + 1}`, value: 0 }])
+  }
+  
+  const removeChartDataPoint = (index: number) => {
+    if (chartData.length > 1) {
+      setChartData(chartData.filter((_, i) => i !== index))
+    }
+  }
+  
+  const updateChartDataPoint = (index: number, field: 'name' | 'value' | 'label', value: string | number) => {
+    const newData = [...chartData]
+    newData[index] = { ...newData[index], [field]: value }
+    setChartData(newData)
+  }
+  
+  const convertChartToHTML = (): string => {
+    let html = ''
+    
+    if (chartType === 'bar' || chartType === 'line') {
+      html = `The image shows a ${chartType === 'bar' ? 'bar chart' : 'line graph'}${chartTitle ? ` titled "${chartTitle}"` : ''}.\n`
+      if (xAxisLabel || yAxisLabel) {
+        html += `The ${xAxisLabel ? `x-axis is labeled "${xAxisLabel}"` : ''}${xAxisLabel && yAxisLabel ? ' and ' : ''}${yAxisLabel ? `y-axis is labeled "${yAxisLabel}"` : ''}.\n`
+      }
+      html += 'The data points are:\n<table>\n'
+      html += '<tr><th>Category</th><th>Value</th></tr>\n'
+      chartData.forEach(point => {
+        html += `<tr><td>${point.name}</td><td>${point.value}</td></tr>\n`
+      })
+      html += '</table>'
+    } else if (chartType === 'dot' || chartType === 'scatter') {
+      html = `The image shows a ${chartType === 'dot' ? 'dot plot' : 'scatter plot'}${chartTitle ? ` titled "${chartTitle}"` : ''}.\n`
+      if (chartType === 'dot') {
+        html += `The dot plot shows the frequency of each value. Each dot represents one occurrence.\n`
+      }
+      if (xAxisLabel || (yAxisLabel && chartType !== 'dot')) {
+        html += `The ${xAxisLabel ? `x-axis is labeled "${xAxisLabel}"` : ''}${xAxisLabel && yAxisLabel && chartType !== 'dot' ? ' and ' : ''}${yAxisLabel && chartType !== 'dot' ? `y-axis is labeled "${yAxisLabel}"` : ''}.\n`
+      }
+      html += 'The data points are:\n<table>\n'
+      html += '<tr><th>x</th><th>y</th>'
+      if (chartData.some(p => p.label)) {
+        html += '<th>Label</th>'
+      }
+      html += '</tr>\n'
+      chartData.forEach(point => {
+        html += `<tr><td>${point.name}</td><td>${point.value}</td>`
+        if (chartData.some(p => p.label)) {
+          html += `<td>${point.label || ''}</td>`
+        }
+        html += '</tr>\n'
+      })
+      html += '</table>'
+      if (chartType === 'dot') {
+        const dotDescriptions = chartData.map(p => {
+          const count = Math.round(p.value)
+          return `${count} dot${count !== 1 ? 's' : ''} at x=${p.name}`
+        }).join(', ')
+        html += `\nNote: In the dot plot, there are ${dotDescriptions}.`
+      }
+    }
+    
+    return html
+  }
+  
+  const insertChartIntoImageDescription = () => {
+    const chartHTML = convertChartToHTML()
+    const currentValue = images.trim()
+    const newValue = currentValue ? `${currentValue}\n\n${chartHTML}` : chartHTML
+    setImages(newValue)
+    setShowChartBuilder(false)
+  }
+  
+  const resetChartBuilder = () => {
+    setChartType('bar')
+    setChartData([
+      { name: 'A', value: 10 },
+      { name: 'B', value: 20 }
+    ])
+    setChartTitle('')
+    setXAxisLabel('')
+    setYAxisLabel('')
+    setYAxisMin(undefined)
+    setYAxisMax(undefined)
+  }
+  
+  // Shape Builder Functions
+  const updateShapeData = (field: string, value: number | string | boolean) => {
+    setShapeData((prev: any) => ({ ...prev, [field]: value }))
+  }
+  
+  // Validate triangle using triangle inequality theorem
+  const validateTriangle = (): string | null => {
+    if (shapeType !== 'triangle') return null
+    
+    const { sideA, sideB, sideC } = shapeData
+    const a = sideA || 0
+    const b = sideB || 0
+    const c = sideC || 0
+    
+    if (a <= 0 || b <= 0 || c <= 0) {
+      return 'All sides must be greater than 0'
+    }
+    
+    // Triangle inequality: sum of any two sides must be greater than the third
+    if (a + b <= c || a + c <= b || b + c <= a) {
+      return 'Triangle inequality violated: sum of any two sides must be greater than the third'
+    }
+    
+    return null
+  }
+  
+  const convertShapeToHTML = (): string => {
+    let html = ''
+    
+    if (shapeType === 'triangle') {
+      const { sideA, sideB, sideC, angleA, angleB, angleC, type } = shapeData
+      const triangleType = type || 'scalene'
+      html = `The image shows a ${triangleType} triangle.\n`
+      html += `The triangle has sides labeled: side A = ${sideA} cm, side B = ${sideB} cm, side C = ${sideC} cm.\n`
+      if (angleA && angleB && angleC) {
+        html += `The angles are: angle A = ${angleA}°, angle B = ${angleB}°, angle C = ${angleC}°.\n`
+      }
+      if (triangleType === 'right') {
+        html += `The right angle is at the vertex where sides A and B meet.\n`
+        html += `The triangle is positioned with side A as the base (horizontal) and side B as the height (vertical).\n`
+      } else if (triangleType === 'equilateral') {
+        html += `All three sides are equal in length.\n`
+        html += `All three angles are 60°.\n`
+      } else if (triangleType === 'isosceles') {
+        html += `Two sides are equal in length.\n`
+      }
+    } else if (shapeType === 'circle') {
+      const { radius, diameter } = shapeData
+      html = `The image shows a circle.\n`
+      if (radius) {
+        html += `The circle has a radius of ${radius} cm.\n`
+      }
+      if (diameter) {
+        html += `The circle has a diameter of ${diameter} cm.\n`
+      }
+      html += `The center of the circle is marked.\n`
+    } else if (shapeType === 'rectangle') {
+      const { width, height } = shapeData
+      html = `The image shows a rectangle.\n`
+      html += `The rectangle has a width of ${width} cm and a height of ${height} cm.\n`
+      html += `The rectangle is positioned with the longer side horizontal.\n`
+    } else if (shapeType === 'polygon') {
+      const { sides, sideLength, isRegular } = shapeData
+      const polygonName = sides === 3 ? 'triangle' : sides === 4 ? 'square' : sides === 5 ? 'pentagon' : sides === 6 ? 'hexagon' : `${sides}-sided polygon`
+      html = `The image shows a ${isRegular ? 'regular' : ''} ${polygonName}.\n`
+      html += `The ${polygonName} has ${sides} sides, each with length ${sideLength} cm.\n`
+      if (isRegular) {
+        html += `All sides are equal in length and all angles are equal.\n`
+      }
+    }
+    
+    return html
+  }
+  
+  const insertShapeIntoImageDescription = () => {
+    const shapeHTML = convertShapeToHTML()
+    const currentValue = images.trim()
+    const newValue = currentValue ? `${currentValue}\n\n${shapeHTML}` : shapeHTML
+    setImages(newValue)
+    setShowShapeBuilder(false)
+  }
+  
+  const resetShapeBuilder = () => {
+    setShapeType('triangle')
+    setShapeData({
+      sideA: 3,
+      sideB: 4,
+      sideC: 5,
+      angleA: 90,
+      angleB: 53.13,
+      angleC: 36.87,
+      type: 'right',
+      radius: 5,
+      diameter: 10,
+      width: 6,
+      height: 4,
+      sides: 5,
+      sideLength: 3,
+      isRegular: true
+    })
+  }
+  
+  // Render shape as SVG
+  const renderShapeSVG = () => {
+    const svgSize = 300
+    const centerX = svgSize / 2
+    const centerY = svgSize / 2
+    
+    if (shapeType === 'triangle') {
+      const { sideA, sideB, sideC, type, angleA } = shapeData
+      let x1, y1, x2, y2, x3, y3
+      
+      // Calculate scale to fit triangle in viewport
+      const maxSide = Math.max(sideA, sideB, sideC)
+      const scale = (svgSize * 0.4) / maxSide
+      
+      if (type === 'right') {
+        // Right triangle: place right angle at vertex A (bottom-left)
+        // Use sideA as base, sideB as height (or vice versa if angleA is at different vertex)
+        const base = sideA || 3
+        const height = sideB || 4
+        const baseScaled = base * scale
+        const heightScaled = height * scale
+        
+        x1 = centerX - baseScaled / 2
+        y1 = centerY + heightScaled / 2
+        x2 = centerX + baseScaled / 2
+        y2 = centerY + heightScaled / 2
+        x3 = centerX - baseScaled / 2
+        y3 = centerY - heightScaled / 2
+      } else if (type === 'equilateral') {
+        // Equilateral triangle: all sides equal
+        const side = sideA || 5
+        const sideScaled = side * scale
+        const height = (Math.sqrt(3) / 2) * sideScaled
+        
+        x1 = centerX
+        y1 = centerY - height / 2
+        x2 = centerX - sideScaled / 2
+        y2 = centerY + height / 2
+        x3 = centerX + sideScaled / 2
+        y3 = centerY + height / 2
+      } else {
+        // General triangle: use Law of Cosines to calculate angles, then position vertices
+        const a = sideA || 3
+        const b = sideB || 4
+        const c = sideC || 5
+        
+        // Calculate angles using Law of Cosines
+        const angleA_rad = Math.acos((b * b + c * c - a * a) / (2 * b * c))
+        const angleB_rad = Math.acos((a * a + c * c - b * b) / (2 * a * c))
+        
+        // Position triangle: vertex A at origin, side AB along x-axis
+        const aScaled = a * scale
+        const bScaled = b * scale
+        const cScaled = c * scale
+        
+        x1 = centerX - aScaled / 2
+        y1 = centerY + (Math.sqrt(3) / 4) * aScaled
+        x2 = centerX + aScaled / 2
+        y2 = centerY + (Math.sqrt(3) / 4) * aScaled
+        
+        // Calculate third vertex using Law of Cosines
+        const angleC_rad = Math.PI - angleA_rad - angleB_rad
+        x3 = x1 + bScaled * Math.cos(angleC_rad)
+        y3 = y1 - bScaled * Math.sin(angleC_rad)
+      }
+      
+      return (
+        <svg width={svgSize} height={svgSize} style={{ border: '1px solid #ddd', borderRadius: '4px' }}>
+          <polygon
+            points={`${x1},${y1} ${x2},${y2} ${x3},${y3}`}
+            fill="none"
+            stroke="#5a2d7a"
+            strokeWidth="2"
+          />
+          {/* Side labels */}
+          <text x={(x1 + x2) / 2} y={(y1 + y2) / 2 + 15} textAnchor="middle" fontSize="11" fill="#5a2d7a">
+            {sideC || 'C'} cm
+          </text>
+          <text x={(x1 + x3) / 2 - 10} y={(y1 + y3) / 2} textAnchor="middle" fontSize="11" fill="#5a2d7a">
+            {sideB || 'B'} cm
+          </text>
+          <text x={(x2 + x3) / 2 + 10} y={(y2 + y3) / 2} textAnchor="middle" fontSize="11" fill="#5a2d7a">
+            {sideA || 'A'} cm
+          </text>
+          {/* Vertex labels */}
+          <circle cx={x1} cy={y1} r={4} fill="#5a2d7a" />
+          <circle cx={x2} cy={y2} r={4} fill="#5a2d7a" />
+          <circle cx={x3} cy={y3} r={4} fill="#5a2d7a" />
+          <text x={x1} y={y1 - 8} textAnchor="middle" fontSize="12" fontWeight="bold" fill="#5a2d7a">
+            A
+          </text>
+          <text x={x2} y={y2 - 8} textAnchor="middle" fontSize="12" fontWeight="bold" fill="#5a2d7a">
+            B
+          </text>
+          <text x={x3} y={y3 - 8} textAnchor="middle" fontSize="12" fontWeight="bold" fill="#5a2d7a">
+            C
+          </text>
+        </svg>
+      )
+    } else if (shapeType === 'circle') {
+      const { radius } = shapeData
+      const r = Math.min(radius * 10, svgSize * 0.3)
+      
+      return (
+        <svg width={svgSize} height={svgSize} style={{ border: '1px solid #ddd', borderRadius: '4px' }}>
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={r}
+            fill="none"
+            stroke="#5a2d7a"
+            strokeWidth="2"
+          />
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={3}
+            fill="#5a2d7a"
+          />
+          <line
+            x1={centerX}
+            y1={centerY}
+            x2={centerX + r}
+            y2={centerY}
+            stroke="#5a2d7a"
+            strokeWidth="1"
+            strokeDasharray="5,5"
+          />
+          <text x={centerX + r / 2} y={centerY - 5} textAnchor="middle" fontSize="12" fill="#5a2d7a">
+            r = {radius} cm
+          </text>
+        </svg>
+      )
+    } else if (shapeType === 'rectangle') {
+      const { width, height } = shapeData
+      const w = Math.min(width * 15, svgSize * 0.6)
+      const h = Math.min(height * 15, svgSize * 0.6)
+      
+      return (
+        <svg width={svgSize} height={svgSize} style={{ border: '1px solid #ddd', borderRadius: '4px' }}>
+          <rect
+            x={centerX - w / 2}
+            y={centerY - h / 2}
+            width={w}
+            height={h}
+            fill="none"
+            stroke="#5a2d7a"
+            strokeWidth="2"
+          />
+          <text x={centerX} y={centerY - h / 2 - 5} textAnchor="middle" fontSize="12" fill="#5a2d7a">
+            {width} cm
+          </text>
+          <text x={centerX - w / 2 - 20} y={centerY} textAnchor="middle" fontSize="12" fill="#5a2d7a" transform={`rotate(-90 ${centerX - w / 2 - 20} ${centerY})`}>
+            {height} cm
+          </text>
+        </svg>
+      )
+    } else if (shapeType === 'polygon') {
+      const { sides, sideLength, isRegular } = shapeData
+      const n = sides
+      const r = Math.min(sideLength * 15, svgSize * 0.3)
+      const points: string[] = []
+      
+      for (let i = 0; i < n; i++) {
+        const angle = (2 * Math.PI * i) / n - Math.PI / 2
+        const x = centerX + r * Math.cos(angle)
+        const y = centerY + r * Math.sin(angle)
+        points.push(`${x},${y}`)
+      }
+      
+      return (
+        <svg width={svgSize} height={svgSize} style={{ border: '1px solid #ddd', borderRadius: '4px' }}>
+          <polygon
+            points={points.join(' ')}
+            fill="none"
+            stroke="#5a2d7a"
+            strokeWidth="2"
+          />
+          <text x={centerX} y={centerY + 5} textAnchor="middle" fontSize="12" fill="#5a2d7a">
+            {sides} sides
+          </text>
+        </svg>
+      )
+    }
+    
+    return null
+  }
+  
+  // Parse chart from image description
+  const parseChartFromDescription = (imageDescription: string): {
+    chartType: 'bar' | 'line' | 'dot' | 'scatter' | 'histogram' | null,
+    chartData: Array<{name: string, value: number, label?: string}>,
+    title: string,
+    xAxisLabel: string,
+    yAxisLabel: string
+  } | null => {
+    // Check if it's a chart description
+    const lowerDesc = imageDescription.toLowerCase()
+    const isBarChart = lowerDesc.includes('bar chart')
+    const isLineGraph = lowerDesc.includes('line graph')
+    const isDotPlot = lowerDesc.includes('dot plot')
+    const isScatterPlot = lowerDesc.includes('scatter plot')
+    const isHistogram = lowerDesc.includes('histogram')
+    
+    if (!isBarChart && !isLineGraph && !isDotPlot && !isScatterPlot && !isHistogram) {
+      return null // Not a chart
+    }
+    
+    const chartType = isBarChart ? 'bar' : isLineGraph ? 'line' : isDotPlot ? 'dot' : isScatterPlot ? 'scatter' : 'histogram'
+    
+    // Extract title
+    const titleMatch = imageDescription.match(/titled\s+"([^"]+)"/i)
+    const title = titleMatch ? titleMatch[1] : ''
+    
+    // Extract axis labels
+    const xAxisMatch = imageDescription.match(/x-axis is labeled\s+"([^"]+)"/i)
+    const xAxisLabel = xAxisMatch ? xAxisMatch[1] : ''
+    
+    const yAxisMatch = imageDescription.match(/y-axis is labeled\s+"([^"]+)"/i)
+    const yAxisLabel = yAxisMatch ? yAxisMatch[1] : ''
+    
+    // Extract table data
+    const tempDiv = document.createElement('div')
+    tempDiv.innerHTML = imageDescription
+    const table = tempDiv.querySelector('table')
+    
+    if (!table) return null
+    
+    const chartData: Array<{name: string, value: number, label?: string}> = []
+    const rows = table.querySelectorAll('tr')
+    
+    rows.forEach((row, index) => {
+      if (index === 0) return // Skip header row
+      
+      const cells = row.querySelectorAll('td')
+      if (cells.length >= 2) {
+        const name = cells[0].textContent?.trim() || ''
+        const value = parseFloat(cells[1].textContent?.trim() || '0')
+        const label = cells[2]?.textContent?.trim()
+        
+        chartData.push({
+          name,
+          value: isNaN(value) ? 0 : value,
+          ...(label && { label })
+        })
+      }
+    })
+    
+    return {
+      chartType,
+      chartData,
+      title,
+      xAxisLabel,
+      yAxisLabel
+    }
+  }
+  
+  // Render chart component
+  const renderChart = (chartInfo: {
+    chartType: 'bar' | 'line' | 'dot' | 'scatter' | 'histogram',
+    chartData: Array<{name: string, value: number, label?: string}>,
+    title: string,
+    xAxisLabel: string,
+    yAxisLabel: string
+  }) => {
+    const { chartType, chartData, title, xAxisLabel, yAxisLabel } = chartInfo
+    
+    return (
+      <div style={{ width: '100%', height: '300px', marginTop: '10px' }}>
+        <ResponsiveContainer width="100%" height="100%">
+          {chartType === 'bar' || chartType === 'histogram' ? (
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" label={xAxisLabel ? { value: xAxisLabel, position: 'insideBottom', offset: -5 } : undefined} />
+              <YAxis label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft' } : undefined} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="value" fill="#5a2d7a" />
+            </BarChart>
+          ) : chartType === 'line' ? (
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" label={xAxisLabel ? { value: xAxisLabel, position: 'insideBottom', offset: -5 } : undefined} />
+              <YAxis label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft' } : undefined} />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="value" stroke="#5a2d7a" strokeWidth={2} />
+            </LineChart>
+          ) : chartType === 'dot' ? (
+            <ScatterChart margin={{ top: 20, right: 20, bottom: 40, left: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis 
+                type="number"
+                dataKey="x" 
+                name={xAxisLabel || 'x'} 
+                label={xAxisLabel ? { value: xAxisLabel, position: 'insideBottom', offset: -5 } : undefined}
+                domain={[-0.5, chartData.length - 0.5]}
+                ticks={chartData.map((_, i) => i)}
+                tickFormatter={(value) => {
+                  const index = Math.round(value)
+                  const dataPoint = chartData[index]
+                  return dataPoint ? dataPoint.name : ''
+                }}
+              />
+              <YAxis 
+                type="number"
+                domain={[0, 'dataMax + 1']}
+                hide={true}
+              />
+              <Tooltip 
+                cursor={{ strokeDasharray: '3 3' }}
+                formatter={(value: any, name: any, props: any) => {
+                  return [`${props.payload.originalValue} dot${props.payload.originalValue !== 1 ? 's' : ''}`, 'Count']
+                }}
+              />
+              <Scatter 
+                data={chartData.flatMap((d, i) => {
+                  const xValue = i
+                  const yValue = Math.max(0, Math.round(d.value))
+                  return Array.from({ length: yValue }, (_, dotIndex) => ({
+                    x: xValue,
+                    y: dotIndex + 1,
+                    originalValue: yValue,
+                    name: d.name
+                  }))
+                })} 
+                fill="#5a2d7a"
+                shape={(props: any) => {
+                  const { cx, cy } = props
+                  if (cx == null || cy == null || typeof cx !== 'number' || typeof cy !== 'number') {
+                    return null
+                  }
+                  return (
+                    <circle 
+                      cx={cx} 
+                      cy={cy} 
+                      r={6} 
+                      fill="#5a2d7a" 
+                      stroke="#5a2d7a"
+                      strokeWidth={1}
+                    />
+                  )
+                }}
+                dataKey="y"
+              />
+            </ScatterChart>
+          ) : (
+            <ScatterChart>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" dataKey="x" name={xAxisLabel || 'x'} label={xAxisLabel ? { value: xAxisLabel, position: 'insideBottom', offset: -5 } : undefined} />
+              <YAxis 
+                type="number" 
+                dataKey="y" 
+                name={yAxisLabel || 'y'} 
+                label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft' } : undefined}
+              />
+              <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+              <Scatter data={chartData.map((d, i) => ({ x: parseFloat(d.name) || i, y: d.value }))} fill="#5a2d7a" />
+            </ScatterChart>
+          )}
+        </ResponsiveContainer>
+      </div>
+    )
+  }
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -318,6 +905,47 @@ function GeneratePageContent() {
     setTimeout(() => setCopiedAll(false), 20000) // Reset after 20 seconds
   }
   
+  // Convert HTML table to TSV format for Google Docs compatibility
+  const convertHTMLTableToTSV = (htmlString: string): string | null => {
+    try {
+      // Create a temporary DOM element to parse HTML
+      const tempDiv = document.createElement('div')
+      tempDiv.innerHTML = htmlString
+      
+      const table = tempDiv.querySelector('table')
+      if (!table) return null // Return null if no table found
+      
+      const rows: string[] = []
+      const tableRows = table.querySelectorAll('tr')
+      
+      tableRows.forEach((row) => {
+        const cells: string[] = []
+        const isHeaderRow = row.querySelector('th') !== null
+        
+        if (isHeaderRow) {
+          row.querySelectorAll('th').forEach(cell => {
+            const cellText = cell.textContent?.trim() || ''
+            cells.push(cellText)
+          })
+        } else {
+          row.querySelectorAll('td').forEach(cell => {
+            const cellText = cell.textContent?.trim() || ''
+            cells.push(cellText)
+          })
+        }
+        
+        if (cells.length > 0) {
+          rows.push(cells.join('\t')) // Tab-separated values
+        }
+      })
+      
+      return rows.length > 0 ? rows.join('\n') : null // Newline-separated rows
+    } catch (error) {
+      console.error('Error converting HTML table to TSV:', error)
+      return null
+    }
+  }
+  
   const formatQuestionForCopy = (question: Question): string => {
     // Format: Question text with spacing, then each option on its own line (all in one cell)
     // Format: Question text followed by spaces so options wrap to next line
@@ -327,8 +955,23 @@ function GeneratePageContent() {
     
     // Add image description below question text if it exists
     if (question.image) {
-      text += ' '.repeat(100) // Add spacing before image description
-      text += `Image Description: ${question.image}`
+      // Check if image description contains an HTML table
+      if (question.image.includes('<table>')) {
+        // Convert HTML table to TSV format for Google Docs compatibility
+        const tsvTable = convertHTMLTableToTSV(question.image)
+        if (tsvTable) {
+          text += '\n\nImage Description (Table):\n' + tsvTable
+        } else {
+          // Fallback: strip HTML tags if conversion fails
+          const plainText = question.image.replace(/<[^>]*>/g, '').trim()
+          text += '\n\nImage Description: ' + plainText
+        }
+      } else {
+        // Regular image description (no table) - strip any HTML tags
+        const plainText = question.image.replace(/<[^>]*>/g, '').trim()
+        text += ' '.repeat(100) // Add spacing before image description
+        text += `Image Description: ${plainText}`
+      }
     }
     
     // Add multiple spaces to ensure first option wraps to next line
@@ -439,9 +1082,16 @@ function GeneratePageContent() {
             })
             
             // Show success message with verification notes (non-blocking)
-            const message = `Question verified and corrected!\n\nErrors found:\n${result.errors?.join('\n') || 'N/A'}\n\n${result.verificationNotes || ''}`
+            let message = `Question verified and corrected!\n\nErrors found:\n${result.errors?.join('\n') || 'N/A'}`
+            
+            // Add context correction information if context was corrected
+            if (result.contextCorrected && result.contextIssues && result.contextIssues.length > 0) {
+              message += `\n\n⚠️ Context Issues Found and Corrected:\n${result.contextIssues.join('\n')}\n\nThe question context has been updated to be more practical and reasonable while maintaining the same mathematical structure.`
+            }
+            
+            message += `\n\n${result.verificationNotes || ''}`
             setVerificationMessage({ index, message, type: 'success' })
-            setTimeout(() => setVerificationMessage(null), 10000) // Auto-dismiss after 10s
+            setTimeout(() => setVerificationMessage(null), 12000) // Auto-dismiss after 12s (longer for context info)
           } else {
             // No actual changes, just show verification success
             setVerificationMessage({ index, message: 'Question verified successfully! No changes needed.', type: 'success' })
@@ -899,13 +1549,75 @@ function GeneratePageContent() {
                   >
                     📊 Build Table
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowChartBuilder(true)}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      backgroundColor: '#fff',
+                      color: '#5a2d7a',
+                      border: '1px solid #5a2d7a',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      height: '28px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      whiteSpace: 'nowrap'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#e6d5f7'
+                      e.currentTarget.style.borderColor = '#5a2d7a'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#fff'
+                      e.currentTarget.style.borderColor = '#5a2d7a'
+                    }}
+                    title="Build Chart"
+                  >
+                    📈 Build Chart
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowShapeBuilder(true)}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      backgroundColor: '#fff',
+                      color: '#5a2d7a',
+                      border: '1px solid #5a2d7a',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      height: '28px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      whiteSpace: 'nowrap'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#e6d5f7'
+                      e.currentTarget.style.borderColor = '#5a2d7a'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#fff'
+                      e.currentTarget.style.borderColor = '#5a2d7a'
+                    }}
+                    title="Build Geometric Shape"
+                  >
+                    🔷 Build Shape
+                  </button>
                 </div>
                 
                 <textarea
                   id="images"
                   value={images}
                   onChange={(e) => setImages(e.target.value)}
-                  placeholder="Enter image description or URLs (comma-separated). Use the Table Builder button above to create HTML tables."
+                  placeholder="Enter image description or URLs (comma-separated). Use the Table Builder or Chart Builder buttons above to create HTML tables or chart descriptions."
                   rows={4}
                   style={{
                     width: '100%',
@@ -1217,26 +1929,49 @@ function GeneratePageContent() {
                     </div>
                   </div>
                   <div className="question-text">{question.question}</div>
-                  {question.image && (
-                    <div className="image-description" style={{
-                      marginTop: '12px',
-                      padding: '10px',
-                      backgroundColor: '#e3f2fd',
-                      borderRadius: '4px',
-                      border: '1px solid #90caf9',
-                      fontSize: '14px',
-                      color: '#555',
-                      fontStyle: 'italic'
-                    }}>
-                      <strong>Image Description:</strong>{' '}
-                      <span dangerouslySetInnerHTML={{ 
-                        __html: DOMPurify.sanitize(question.image, {
-                          ALLOWED_TAGS: ['table', 'tr', 'td', 'th', 'thead', 'tbody', 'tfoot'],
-                          ALLOWED_ATTR: ['style', 'class', 'colspan', 'rowspan']
-                        })
-                      }} />
-                    </div>
-                  )}
+                  {question.image && (() => {
+                    const chartInfo = parseChartFromDescription(question.image)
+                    
+                    if (chartInfo) {
+                      // Render chart visually
+                      return (
+                        <div className="image-description" style={{
+                          marginTop: '12px',
+                          padding: '10px',
+                          backgroundColor: '#e3f2fd',
+                          borderRadius: '4px',
+                          border: '1px solid #90caf9',
+                          fontSize: '14px',
+                          color: '#555'
+                        }}>
+                          <strong>Image Description:</strong> {chartInfo.title && <span style={{ fontStyle: 'italic' }}>"{chartInfo.title}"</span>}
+                          {renderChart(chartInfo)}
+                        </div>
+                      )
+                    } else {
+                      // Render as HTML (for tables or other content)
+                      return (
+                        <div className="image-description" style={{
+                          marginTop: '12px',
+                          padding: '10px',
+                          backgroundColor: '#e3f2fd',
+                          borderRadius: '4px',
+                          border: '1px solid #90caf9',
+                          fontSize: '14px',
+                          color: '#555',
+                          fontStyle: 'italic'
+                        }}>
+                          <strong>Image Description:</strong>{' '}
+                          <span dangerouslySetInnerHTML={{ 
+                            __html: DOMPurify.sanitize(question.image, {
+                              ALLOWED_TAGS: ['table', 'tr', 'td', 'th', 'thead', 'tbody', 'tfoot'],
+                              ALLOWED_ATTR: ['style', 'class', 'colspan', 'rowspan']
+                            })
+                          }} />
+                        </div>
+                      )
+                    }
+                  })()}
                   {question.options && question.options.length > 0 && (
                     <>
                       <h3 className="options-heading">Options</h3>
@@ -1496,6 +2231,794 @@ function GeneratePageContent() {
                   className="btn btn-primary"
                 >
                   Insert Table
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Chart Builder Modal */}
+        {showChartBuilder && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: '20px'
+            }}
+            onClick={() => setShowChartBuilder(false)}
+          >
+            <div
+              style={{
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                padding: '30px',
+                maxHeight: '90vh',
+                overflow: 'auto',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+                width: '100%',
+                maxWidth: '900px'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h2 style={{ margin: 0, color: '#5a2d7a' }}>📈 Chart Builder</h2>
+                <button
+                  onClick={() => {
+                    setShowChartBuilder(false)
+                    resetChartBuilder()
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '24px',
+                    cursor: 'pointer',
+                    color: '#666',
+                    padding: '0',
+                    lineHeight: '1'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              
+              {/* Chart Type Selection */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Chart Type</label>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  {(['bar', 'line', 'dot', 'scatter'] as const).map(type => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setChartType(type)}
+                      style={{
+                        padding: '8px 16px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        backgroundColor: chartType === type ? '#5a2d7a' : '#fff',
+                        color: chartType === type ? '#fff' : '#5a2d7a',
+                        border: '1px solid #5a2d7a',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        textTransform: 'capitalize'
+                      }}
+                    >
+                      {type === 'dot' ? 'Dot Plot' : type === 'scatter' ? 'Scatter Plot' : type === 'bar' ? 'Bar Chart' : 'Line Graph'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Chart Labels */}
+              <div style={{ marginBottom: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Chart Title (optional)</label>
+                  <input
+                    type="text"
+                    value={chartTitle}
+                    onChange={(e) => setChartTitle(e.target.value)}
+                    placeholder="e.g., Sales by Month"
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>X-Axis Label (optional)</label>
+                  <input
+                    type="text"
+                    value={xAxisLabel}
+                    onChange={(e) => setXAxisLabel(e.target.value)}
+                    placeholder="e.g., Month"
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+                {chartType !== 'dot' && (
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Y-Axis Label (optional)</label>
+                    <input
+                      type="text"
+                      value={yAxisLabel}
+                      onChange={(e) => setYAxisLabel(e.target.value)}
+                      placeholder="e.g., Sales ($)"
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+                )}
+                {chartType !== 'dot' && (
+                  <>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Y-Axis Min (optional)</label>
+                      <input
+                        type="number"
+                        value={yAxisMin ?? ''}
+                        onChange={(e) => setYAxisMin(e.target.value ? parseFloat(e.target.value) : undefined)}
+                        placeholder="Auto"
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Y-Axis Max (optional)</label>
+                      <input
+                        type="number"
+                        value={yAxisMax ?? ''}
+                        onChange={(e) => setYAxisMax(e.target.value ? parseFloat(e.target.value) : undefined)}
+                        placeholder="Auto"
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              {/* Chart Preview */}
+              <div style={{ marginBottom: '20px', padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
+                <strong style={{ display: 'block', marginBottom: '15px' }}>Preview:</strong>
+                <div style={{ width: '100%', height: '300px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    {chartType === 'bar' ? (
+                      <BarChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" label={xAxisLabel ? { value: xAxisLabel, position: 'insideBottom', offset: -5 } : undefined} />
+                        <YAxis 
+                          label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft' } : undefined}
+                          domain={yAxisMin !== undefined || yAxisMax !== undefined ? [yAxisMin ?? 'auto', yAxisMax ?? 'auto'] : undefined}
+                        />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="value" fill="#5a2d7a" />
+                      </BarChart>
+                    ) : chartType === 'line' ? (
+                      <LineChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" label={xAxisLabel ? { value: xAxisLabel, position: 'insideBottom', offset: -5 } : undefined} />
+                        <YAxis 
+                          label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft' } : undefined}
+                          domain={yAxisMin !== undefined || yAxisMax !== undefined ? [yAxisMin ?? 'auto', yAxisMax ?? 'auto'] : undefined}
+                        />
+                        <Tooltip />
+                        <Legend />
+                        <Line type="monotone" dataKey="value" stroke="#5a2d7a" strokeWidth={2} />
+                      </LineChart>
+                    ) : chartType === 'dot' ? (
+                      <ScatterChart
+                        margin={{ top: 20, right: 20, bottom: 40, left: 20 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          type="number"
+                          dataKey="x" 
+                          name={xAxisLabel || 'x'} 
+                          label={xAxisLabel ? { value: xAxisLabel, position: 'insideBottom', offset: -5 } : undefined}
+                          domain={[-0.5, chartData.length - 0.5]}
+                          ticks={chartData.map((_, i) => i)}
+                          tickFormatter={(value) => {
+                            // Find the original name for this x value
+                            const index = Math.round(value)
+                            const dataPoint = chartData[index]
+                            return dataPoint ? dataPoint.name : ''
+                          }}
+                        />
+                        <YAxis 
+                          type="number"
+                          domain={[0, 'dataMax + 1']}
+                          hide={true}
+                        />
+                        <Tooltip 
+                          cursor={{ strokeDasharray: '3 3' }}
+                          formatter={(value: any, name: any, props: any) => {
+                            return [`${props.payload.originalValue} dot${props.payload.originalValue !== 1 ? 's' : ''}`, 'Count']
+                          }}
+                        />
+                        <Scatter 
+                          data={chartData.flatMap((d, i) => {
+                            const xValue = i // Use index as x position for even spacing
+                            const yValue = Math.max(0, Math.round(d.value)) // Ensure integer value and non-negative
+                            // Create multiple dots stacked vertically (1 dot per y-value) above x-axis
+                            return Array.from({ length: yValue }, (_, dotIndex) => ({
+                              x: xValue,
+                              y: dotIndex + 1, // Stack dots from 1 upward (above x-axis at y=0)
+                              originalValue: yValue,
+                              name: d.name
+                            }))
+                          })} 
+                          fill="#5a2d7a"
+                          shape={(props: any) => {
+                            const { cx, cy, payload } = props
+                            if (cx == null || cy == null || typeof cx !== 'number' || typeof cy !== 'number') {
+                              return null
+                            }
+                            return (
+                              <circle 
+                                cx={cx} 
+                                cy={cy} 
+                                r={6} 
+                                fill="#5a2d7a" 
+                                stroke="#5a2d7a"
+                                strokeWidth={1}
+                              />
+                            )
+                          }}
+                          dataKey="y"
+                        />
+                      </ScatterChart>
+                    ) : (
+                      <ScatterChart>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" dataKey="x" name={xAxisLabel || 'x'} label={xAxisLabel ? { value: xAxisLabel, position: 'insideBottom', offset: -5 } : undefined} />
+                        <YAxis 
+                          type="number" 
+                          dataKey="y" 
+                          name={yAxisLabel || 'y'} 
+                          label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft' } : undefined}
+                          domain={yAxisMin !== undefined || yAxisMax !== undefined ? [yAxisMin ?? 'auto', yAxisMax ?? 'auto'] : undefined}
+                        />
+                        <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+                        <Scatter data={chartData.map((d, i) => ({ x: parseFloat(d.name) || i, y: d.value }))} fill="#5a2d7a" />
+                      </ScatterChart>
+                    )}
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              
+              {/* Data Points Editor */}
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <strong>Data Points</strong>
+                  <button
+                    type="button"
+                    onClick={addChartDataPoint}
+                    className="btn btn-secondary"
+                    style={{ fontSize: '14px', padding: '6px 12px' }}
+                  >
+                    + Add Point
+                  </button>
+                </div>
+                <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px', padding: '10px' }}>
+                  {chartData.map((point, index) => (
+                    <div key={index} style={{ display: 'flex', gap: '10px', marginBottom: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        value={point.name}
+                        onChange={(e) => updateChartDataPoint(index, 'name', e.target.value)}
+                        placeholder={chartType === 'dot' || chartType === 'scatter' ? 'x value' : 'Category'}
+                        style={{
+                          flex: '1',
+                          minWidth: '100px',
+                          padding: '6px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                      <input
+                        type="number"
+                        value={point.value}
+                        onChange={(e) => updateChartDataPoint(index, 'value', parseFloat(e.target.value) || 0)}
+                        placeholder={chartType === 'dot' ? 'Number of dots' : chartType === 'scatter' ? 'y value' : 'Value'}
+                        style={{
+                          flex: '1',
+                          minWidth: '100px',
+                          padding: '6px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                      {(chartType === 'dot' || chartType === 'scatter') && (
+                        <input
+                          type="text"
+                          value={point.label || ''}
+                          onChange={(e) => updateChartDataPoint(index, 'label', e.target.value)}
+                          placeholder="Label (optional)"
+                          style={{
+                            flex: '1',
+                            minWidth: '100px',
+                            padding: '6px',
+                            border: '1px solid #ddd',
+                            borderRadius: '4px',
+                            fontSize: '14px'
+                          }}
+                        />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeChartDataPoint(index)}
+                        disabled={chartData.length <= 1}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: chartData.length > 1 ? '#ff4444' : '#ccc',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: chartData.length > 1 ? 'pointer' : 'not-allowed',
+                          fontSize: '14px'
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* HTML Preview */}
+              <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
+                <strong style={{ display: 'block', marginBottom: '10px' }}>Generated Description:</strong>
+                <div
+                  style={{
+                    fontSize: '12px',
+                    color: '#666',
+                    fontFamily: 'monospace',
+                    whiteSpace: 'pre-wrap',
+                    maxHeight: '150px',
+                    overflow: 'auto',
+                    padding: '10px',
+                    backgroundColor: 'white',
+                    borderRadius: '4px',
+                    border: '1px solid #ddd'
+                  }}
+                >
+                  {convertChartToHTML()}
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowChartBuilder(false)
+                    resetChartBuilder()
+                  }}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={insertChartIntoImageDescription}
+                  className="btn btn-primary"
+                >
+                  Insert Chart Description
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Shape Builder Modal */}
+        {showShapeBuilder && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: '20px'
+            }}
+            onClick={() => setShowShapeBuilder(false)}
+          >
+            <div
+              style={{
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                padding: '30px',
+                maxHeight: '90vh',
+                overflow: 'auto',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+                width: '100%',
+                maxWidth: '900px'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h2 style={{ margin: 0, color: '#5a2d7a' }}>🔷 Geometric Shape Builder</h2>
+                <button
+                  onClick={() => {
+                    setShowShapeBuilder(false)
+                    resetShapeBuilder()
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '24px',
+                    cursor: 'pointer',
+                    color: '#666',
+                    padding: '0',
+                    lineHeight: '1'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              
+              {/* Shape Type Selection */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Shape Type</label>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  {(['triangle', 'circle', 'rectangle', 'polygon'] as const).map(type => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setShapeType(type)}
+                      style={{
+                        padding: '8px 16px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        backgroundColor: shapeType === type ? '#5a2d7a' : '#fff',
+                        color: shapeType === type ? '#fff' : '#5a2d7a',
+                        border: '1px solid #5a2d7a',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        textTransform: 'capitalize'
+                      }}
+                    >
+                      {type === 'triangle' ? 'Triangle' : type === 'circle' ? 'Circle' : type === 'rectangle' ? 'Rectangle' : 'Polygon'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Shape-Specific Inputs */}
+              <div style={{ marginBottom: '20px' }}>
+                {shapeType === 'triangle' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Side A (cm)</label>
+                      <input
+                        type="number"
+                        value={shapeData.sideA || ''}
+                        onChange={(e) => updateShapeData('sideA', parseFloat(e.target.value) || 0)}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Side B (cm)</label>
+                      <input
+                        type="number"
+                        value={shapeData.sideB || ''}
+                        onChange={(e) => updateShapeData('sideB', parseFloat(e.target.value) || 0)}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Side C (cm)</label>
+                      <input
+                        type="number"
+                        value={shapeData.sideC || ''}
+                        onChange={(e) => updateShapeData('sideC', parseFloat(e.target.value) || 0)}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Triangle Type</label>
+                      <select
+                        value={shapeData.type || 'scalene'}
+                        onChange={(e) => updateShapeData('type', e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      >
+                        <option value="right">Right</option>
+                        <option value="equilateral">Equilateral</option>
+                        <option value="isosceles">Isosceles</option>
+                        <option value="scalene">Scalene</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Angle A (°)</label>
+                      <input
+                        type="number"
+                        value={shapeData.angleA || ''}
+                        onChange={(e) => updateShapeData('angleA', parseFloat(e.target.value) || 0)}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Angle B (°)</label>
+                      <input
+                        type="number"
+                        value={shapeData.angleB || ''}
+                        onChange={(e) => updateShapeData('angleB', parseFloat(e.target.value) || 0)}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Angle C (°)</label>
+                      <input
+                        type="number"
+                        value={shapeData.angleC || ''}
+                        onChange={(e) => updateShapeData('angleC', parseFloat(e.target.value) || 0)}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                    {validateTriangle() && (
+                      <div style={{ gridColumn: '1 / -1', padding: '10px', backgroundColor: '#ffebee', borderRadius: '4px', border: '1px solid #f44336' }}>
+                        <span style={{ color: '#c62828', fontSize: '14px' }}>⚠️ {validateTriangle()}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {shapeType === 'circle' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Radius (cm)</label>
+                      <input
+                        type="number"
+                        value={shapeData.radius || ''}
+                        onChange={(e) => {
+                          const r = parseFloat(e.target.value) || 0
+                          updateShapeData('radius', r)
+                          updateShapeData('diameter', r * 2)
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Diameter (cm)</label>
+                      <input
+                        type="number"
+                        value={shapeData.diameter || ''}
+                        onChange={(e) => {
+                          const d = parseFloat(e.target.value) || 0
+                          updateShapeData('diameter', d)
+                          updateShapeData('radius', d / 2)
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {shapeType === 'rectangle' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Width (cm)</label>
+                      <input
+                        type="number"
+                        value={shapeData.width || ''}
+                        onChange={(e) => updateShapeData('width', parseFloat(e.target.value) || 0)}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Height (cm)</label>
+                      <input
+                        type="number"
+                        value={shapeData.height || ''}
+                        onChange={(e) => updateShapeData('height', parseFloat(e.target.value) || 0)}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {shapeType === 'polygon' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Number of Sides</label>
+                      <input
+                        type="number"
+                        min="3"
+                        max="12"
+                        value={shapeData.sides || ''}
+                        onChange={(e) => updateShapeData('sides', parseInt(e.target.value) || 3)}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Side Length (cm)</label>
+                      <input
+                        type="number"
+                        value={shapeData.sideLength || ''}
+                        onChange={(e) => updateShapeData('sideLength', parseFloat(e.target.value) || 0)}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                        <input
+                          type="checkbox"
+                          checked={shapeData.isRegular !== false}
+                          onChange={(e) => updateShapeData('isRegular', e.target.checked)}
+                        />
+                        <span style={{ fontWeight: '600' }}>Regular Polygon (all sides and angles equal)</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Shape Preview */}
+              <div style={{ marginBottom: '20px', padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '8px', display: 'flex', justifyContent: 'center' }}>
+                {renderShapeSVG()}
+              </div>
+              
+              {/* Generated Description Preview */}
+              <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
+                <strong style={{ display: 'block', marginBottom: '10px' }}>Generated Description:</strong>
+                <div
+                  style={{
+                    fontSize: '12px',
+                    color: '#666',
+                    fontFamily: 'monospace',
+                    whiteSpace: 'pre-wrap',
+                    maxHeight: '150px',
+                    overflow: 'auto',
+                    padding: '10px',
+                    backgroundColor: 'white',
+                    borderRadius: '4px',
+                    border: '1px solid #ddd'
+                  }}
+                >
+                  {convertShapeToHTML()}
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowShapeBuilder(false)
+                    resetShapeBuilder()
+                  }}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={insertShapeIntoImageDescription}
+                  className="btn btn-primary"
+                  disabled={!!validateTriangle()}
+                  style={{
+                    opacity: validateTriangle() ? 0.5 : 1,
+                    cursor: validateTriangle() ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  Insert Shape Description
                 </button>
               </div>
             </div>

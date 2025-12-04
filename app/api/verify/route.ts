@@ -94,6 +94,53 @@ STEP 7: VERIFY THE SOLUTION (if provided)
 - Verify that the solution leads to the correct answer
 - Check if the solution matches the correct option
 
+STEP 8: VERIFY CONTEXT PRACTICALITY AND REASONABLENESS (FOR WORD PROBLEMS AND IMAGE-BASED QUESTIONS WITH CONTEXT)
+${questionType === 'word-problems' || questionType === 'image-based' ? `- Check if the context/scenario is practical and reasonable:
+  * Are the quantities realistic? (e.g., prices, speeds, ages, amounts, distances, time)
+  * Are the timeframes logical? (e.g., can someone really do X in Y time?)
+  * Are the ages appropriate for the activities described?
+  * Are the scenarios believable and possible in real life?
+  * Are units and measurements consistent and realistic?
+  * Are the numbers appropriate for the grade level?
+- Check for impractical scenarios:
+  * ❌ "A student solving 200 problems in 5 minutes" (impossible - too fast)
+  * ❌ "A 5-year-old driving a car" (age-inappropriate)
+  * ❌ "Buying a house for $5" (unrealistic price - too low)
+  * ❌ "Running 1000 miles per hour" (impossible speed)
+  * ❌ "A person who is 200 years old" (unrealistic age)
+  * ❌ "A 3rd grader solving calculus problems" (grade-inappropriate)
+  * ❌ "Walking 500 miles in 1 hour" (impossible distance/time)
+  * ❌ "A book costing $0.01" (unrealistic price for most books)
+- Check for reasonable scenarios:
+  * ✅ "A student solving 10 problems in 30 minutes" (reasonable pace)
+  * ✅ "A 16-year-old learning to drive" (age-appropriate)
+  * ✅ "Buying a book for $15" (realistic price)
+  * ✅ "Running 6 miles per hour" (reasonable speed)
+  * ✅ "A person who is 35 years old" (realistic age)
+  * ✅ "A 5th grader solving multiplication problems" (grade-appropriate)
+  * ✅ "Walking 3 miles in 1 hour" (reasonable distance/time)
+  * ✅ "A toy costing $12.99" (realistic price)
+- If context is impractical or unreasonable:
+  * Set hasErrors: true
+  * Add error: "Context is impractical/unreasonable: [description of specific issue]"
+  * Add to contextIssues array: [detailed list of all context problems found]
+  * Set contextCorrected: true
+  * Provide corrected question with practical and reasonable context
+  * Maintain the same mathematical structure and difficulty
+  * Only change the context/scenario values, not the math problem itself
+  * Ensure corrected values are:
+    - Realistic and believable
+    - Age-appropriate for the grade level
+    - Consistent with real-world expectations
+    - Mathematically equivalent (same problem type, same operations)
+- Examples of context corrections:
+  * "200 problems in 5 minutes" → "20 problems in 30 minutes" (maintains same rate concept)
+  * "$5 for a house" → "$150,000 for a house" (realistic price)
+  * "200 years old" → "35 years old" (realistic age)
+  * "1000 mph" → "60 mph" (reasonable speed)
+  * "A 3rd grader doing calculus" → "A 3rd grader doing addition" (grade-appropriate)
+  * "500 miles in 1 hour" → "3 miles in 1 hour" (reasonable walking speed)` : '- Context verification: N/A (mathematical question without context)'}
+
 CRITICAL ERROR DETECTION RULES:
 1. If the marked CA is WRONG:
    - Set hasErrors: true
@@ -136,6 +183,28 @@ CRITICAL ERROR DETECTION RULES:
      * Logic: "Calculation error" but option is clearly wrong → DO NOT FLAG (acceptable, even if not specific)
    - Only update option values if the current value is mathematically wrong in a way that contradicts the logic
 
+7. If the context is impractical or unreasonable:
+   - Set hasErrors: true
+   - Set contextCorrected: true
+   - Add error: "Context is impractical/unreasonable: [specific issue, e.g., 'Student solving 200 problems in 5 minutes is impossible']"
+   - Add to contextIssues array: [detailed list of all context problems, e.g., "Quantity too high: 200 problems", "Time too short: 5 minutes", "Rate is unrealistic: 40 problems per minute"]
+   - Provide corrected question with practical context
+   - Ensure the corrected context:
+     * Maintains the same mathematical problem structure
+     * Uses realistic quantities, timeframes, and scenarios
+     * Is age-appropriate for the grade level (if grade level can be inferred)
+     * Is believable and possible in real life
+     * Preserves the mathematical relationships (e.g., if original was about rate, corrected should also be about rate)
+   - Example corrections:
+     * "200 problems in 5 minutes" → "20 problems in 30 minutes" (maintains rate concept, more realistic)
+     * "$5 for a house" → "$150,000 for a house" (realistic price)
+     * "200 years old" → "35 years old" (realistic age)
+     * "1000 mph" → "60 mph" (reasonable speed)
+     * "A 3rd grader solving calculus" → "A 3rd grader solving addition" (grade-appropriate)
+     * "500 miles in 1 hour" → "3 miles in 1 hour" (reasonable walking speed)
+   - CRITICAL: Only change context values, NOT the mathematical structure or operations
+   - CRITICAL: The corrected question should solve to the same type of answer (same units, same format)
+
 OUTPUT FORMAT (JSON only, no markdown):
 {
   "hasErrors": true/false,
@@ -146,23 +215,28 @@ OUTPUT FORMAT (JSON only, no markdown):
     ...
   ],
   "correctedSolution": "corrected solution (only if solution had errors, otherwise same as input)",
+  "contextCorrected": true/false,
+  "contextIssues": ["list of context issues found, e.g., 'Quantity too high: 200 problems', 'Time too short: 5 minutes'"],
   "verificationNotes": "detailed explanation of verification process, what was checked, and any corrections made"
 }
 
 CRITICAL OUTPUT REQUIREMENTS:
-- BE CONSERVATIVE: Only flag errors if there are ACTUAL mathematical mistakes, not minor discrepancies
-- If the question is mathematically correct and the correct answer is properly marked: set "hasErrors": false
+- BE CONSERVATIVE: Only flag errors if there are ACTUAL mathematical mistakes or clear context issues, not minor discrepancies
+- If the question is mathematically correct, context is reasonable, and the correct answer is properly marked: set "hasErrors": false
 - If no errors are found: set "hasErrors": false and return original question/options/solution EXACTLY as provided (unchanged)
-- Only set "hasErrors": true if there are clear mathematical errors that need correction
+- Only set "hasErrors": true if there are clear mathematical errors or impractical context that need correction
 - DO NOT change correct answers, solutions, or options just because they could be worded differently
 - DO NOT change option values unless they are mathematically wrong (e.g., a distractor is actually correct)
 - The "correctedOptions" array MUST have EXACTLY ${options.length} options (same as input) - DO NOT add or remove options
 - Exactly ONE option MUST have "logic": "CA"
-- "verificationNotes" MUST include: "I solved the question and got [your answer]. The correct option is [letter]."
+- If context was corrected: set "contextCorrected": true and populate "contextIssues" with detailed list of problems found
+- If context was NOT corrected: set "contextCorrected": false and "contextIssues": []
+- "verificationNotes" MUST include: "I solved the question and got [your answer]. The correct option is [letter]." If context was corrected, also mention: "Context was corrected for practicality: [brief summary]."
 - Return ONLY valid JSON, no markdown code blocks, no explanations outside JSON
-- Be extremely careful and thorough - mathematical accuracy is critical
+- Be extremely careful and thorough - mathematical accuracy and context reasonableness are both critical
 - CRITICAL: Maintain the exact same number of options - if you need to fix an option, replace it in place, do not add or remove options
-- CONSERVATIVE APPROACH: When in doubt, do NOT change anything - only correct clear mathematical errors`
+- CONSERVATIVE APPROACH: When in doubt about mathematical correctness, do NOT change anything - only correct clear mathematical errors
+- CONTEXT CORRECTION: Only correct context if it is clearly impractical or unreasonable - be conservative but thorough`
 
     try {
       const client = getOpenAIClient()
