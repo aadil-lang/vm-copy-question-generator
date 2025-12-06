@@ -774,7 +774,7 @@ function GeneratePageContent() {
                 shape={(props: any) => {
                   const { cx, cy } = props
                   if (cx == null || cy == null || typeof cx !== 'number' || typeof cy !== 'number') {
-                    return null
+                    return <g />
                   }
                   return (
                     <circle 
@@ -1932,7 +1932,7 @@ function GeneratePageContent() {
                   {question.image && (() => {
                     const chartInfo = parseChartFromDescription(question.image)
                     
-                    if (chartInfo) {
+                    if (chartInfo && chartInfo.chartType) {
                       // Render chart visually
                       return (
                         <div className="image-description" style={{
@@ -1945,7 +1945,7 @@ function GeneratePageContent() {
                           color: '#555'
                         }}>
                           <strong>Image Description:</strong> {chartInfo.title && <span style={{ fontStyle: 'italic' }}>"{chartInfo.title}"</span>}
-                          {renderChart(chartInfo)}
+                          {renderChart(chartInfo as { chartType: 'bar' | 'line' | 'dot' | 'scatter' | 'histogram', chartData: Array<{name: string, value: number, label?: string}>, title: string, xAxisLabel: string, yAxisLabel: string })}
                         </div>
                       )
                     } else {
@@ -2482,7 +2482,7 @@ function GeneratePageContent() {
                           shape={(props: any) => {
                             const { cx, cy, payload } = props
                             if (cx == null || cy == null || typeof cx !== 'number' || typeof cy !== 'number') {
-                              return null
+                              return <g />
                             }
                             return (
                               <circle 
