@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getOpenAIClient } from '@/lib/openai'
 import { analyzeImageForQuestion, generateWithAI, getAIProvider } from '@/lib/ai-client'
 import { doesNaraModelSupportVision } from '@/lib/nararouter'
+import { evaluateDeterministic } from '@/lib/eval-layer'
 import { loadCurriculumSubskills } from '@/lib/curriculum'
 import { parseNumberOfOptions, determineQuestionType } from '@/lib/question-utils'
 
@@ -107,7 +108,16 @@ export async function POST(request: NextRequest) {
     const batchResults = await Promise.all(batchPromises)
     const questions = batchResults.flat().slice(0, numQuestions)
 
-    return NextResponse.json({ questions })
+    // Run Eval Layer (Tier 1 Deterministic Validation) on all generated questions
+    const evaluatedQuestions = questions.map((q) => {
+      const evalStatus = evaluateDeterministic(q, numOptions, notes)
+      return {
+        ...q,
+        evalStatus
+      }
+    })
+
+    return NextResponse.json({ questions: evaluatedQuestions })
   } catch (error: any) {
     console.error('Error generating questions:', error)
     return NextResponse.json(

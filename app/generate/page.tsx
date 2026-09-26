@@ -10,6 +10,12 @@ interface Question {
   options: Array<{ text: string; logic: string }>
   image?: string
   solution?: string
+  evalStatus?: {
+    passed: boolean
+    score: number
+    issues: string[]
+    calculatedAnswer?: string
+  }
 }
 
 function GeneratePageContent() {
@@ -1909,6 +1915,25 @@ function GeneratePageContent() {
                         onChange={() => toggleSelection(index)}
                       />
                       <span className="question-number">Question {index + 1}</span>
+                      {question.evalStatus && (
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            backgroundColor: question.evalStatus.passed ? '#e6f4ea' : '#fef7e0',
+                            color: question.evalStatus.passed ? '#137333' : '#b06000',
+                            border: `1px solid ${question.evalStatus.passed ? '#ceead6' : '#fdd663'}`,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                          title={question.evalStatus.issues && question.evalStatus.issues.length > 0 ? question.evalStatus.issues.join('; ') : 'All format, option integrity, and SME checks passed.'}
+                        >
+                          {question.evalStatus.passed ? '✓ Evaluated (100%)' : `⚠ Audit Alert (${question.evalStatus.score}%)`}
+                        </span>
+                      )}
                     </div>
                     <div className="button-group-inline">
                       <button
