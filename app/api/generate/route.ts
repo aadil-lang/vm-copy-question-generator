@@ -36,23 +36,77 @@ export async function POST(request: NextRequest) {
     const numQuestions = parseInt(data.numCopyQuestions, 10)
     const model = data.model || 'gpt-4o'
     const questionTypeFromUrl = data.questionType || null
-    
-    // Generate questions
-    const questions = await generateQuestionsWithGPT(
-      baseQuestion,
-      notes,
-      solution,
-      images,
-      imageFiles,
-      numOptions,
-      numQuestions,
-      difficulty,
-      grade,
-      curriculum,
-      model,
-      questionTypeFromUrl
+    // Determine question type
+    let questionType: 'mathematical' | 'word_problem' | 'image_based'
+    if (questionTypeFromUrl) {
+      if (questionTypeFromUrl === 'word-problems') {
+        questionType = 'word_problem'
+      } else if (questionTypeFromUrl === 'mathematical') {
+        questionType = 'mathematical'
+      } else if (questionTypeFromUrl === 'image-based') {
+        questionType = 'image_based'
+      } else {
+        questionType = determineQuestionType(baseQuestion, notes)
+      }
+    } else {
+      questionType = determineQuestionType(baseQuestion, notes)
+    }
+
+    // Pre-analyze images once if image-based and images are provided
+    let preAnalyzedImageContent = ''
+    if (questionType === 'image_based' && imageFiles.length > 0) {
+      try {
+        console.log(`Analyzing ${imageFiles.length} uploaded image(s) once for parallel generation...`)
+        const provider = getAIProvider(model)
+        let visionModel = model
+        if (provider === 'openai') {
+          visionModel = model === 'gpt-4o' || model === 'gpt-4-turbo' ? model : 'gpt-4o'
+        } else if (provider === 'nararouter') {
+          visionModel = doesNaraModelSupportVision(model) ? model : 'agnes-3-flash'
+        } else {
+          visionModel = model.startsWith('gemini-') ? model : 'gemini-1.5-pro'
+        }
+
+        const analyses = await Promise.all(
+          imageFiles.map((img: string) => analyzeImageForQuestion(img, visionModel))
+        )
+        preAnalyzedImageContent = analyses
+          .map((analysis, index) => `Image ${index + 1} Analysis:\n${analysis}`)
+          .join('\n\n---\n\n')
+        console.log('Image pre-analysis completed successfully')
+      } catch (err: any) {
+        console.error('Error pre-analyzing images:', err)
+        preAnalyzedImageContent = `[Image analysis failed: ${err.message}. Using images as reference only.]`
+      }
+    }
+
+    // Calculate parallel batches (max 2-3 questions per batch for optimal speed & reliability)
+    const batches = calculateBatches(numQuestions)
+    console.log(`Parallel generation: Generating ${numQuestions} question(s) in ${batches.length} parallel batch(es):`, batches)
+
+    const batchPromises = batches.map((batchCount, index) =>
+      generateQuestionsWithGPT(
+        baseQuestion,
+        notes,
+        solution,
+        images,
+        imageFiles,
+        numOptions,
+        batchCount,
+        difficulty,
+        grade,
+        curriculum,
+        model,
+        questionTypeFromUrl,
+        preAnalyzedImageContent,
+        index,
+        batches.length
+      )
     )
-    
+
+    const batchResults = await Promise.all(batchPromises)
+    const questions = batchResults.flat().slice(0, numQuestions)
+
     return NextResponse.json({ questions })
   } catch (error: any) {
     console.error('Error generating questions:', error)
@@ -61,6 +115,25 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+// Partition requested questions into optimal parallel batches (max 2-3 per batch)
+function calculateBatches(numQuestions: number): number[] {
+  if (numQuestions <= 2) return [numQuestions]
+  if (numQuestions === 3) return [2, 1]
+  if (numQuestions === 4) return [2, 2]
+  if (numQuestions === 5) return [3, 2]
+  if (numQuestions === 6) return [2, 2, 2]
+  if (numQuestions === 7) return [3, 2, 2]
+  if (numQuestions === 8) return [3, 3, 2]
+  const batches: number[] = []
+  let remaining = numQuestions
+  while (remaining > 0) {
+    const size = remaining >= 6 ? 3 : (remaining >= 4 ? 2 : remaining)
+    batches.push(size)
+    remaining -= size
+  }
+  return batches
 }
 
 async function generateQuestionsWithGPT(
@@ -75,7 +148,10 @@ async function generateQuestionsWithGPT(
   grade: string,
   curriculum: string,
   model: string,
-  questionTypeFromUrl: string | null
+  questionTypeFromUrl: string | null,
+  preAnalyzedImageContent: string = '',
+  batchIndex: number = 0,
+  totalBatches: number = 1
 ) {
   // Load relevant subskills
   let subskillsText = 'General math concepts'
@@ -101,8 +177,8 @@ async function generateQuestionsWithGPT(
   }
   
   // Analyze uploaded images if present and for image-based questions
-  let analyzedImageContent = ''
-  if (questionType === 'image_based' && imageFiles.length > 0) {
+  let analyzedImageContent = preAnalyzedImageContent
+  if (!analyzedImageContent && questionType === 'image_based' && imageFiles.length > 0) {
     try {
       console.log(`Analyzing ${imageFiles.length} uploaded image(s) for content extraction...`)
       // Use a vision-capable model for analysis
@@ -246,6 +322,7 @@ ${'='.repeat(80)}`
     userPrompt = `${'='.repeat(80)}
 ⚠️⚠️⚠️ CRITICAL: YOU MUST GENERATE EXACTLY ${numQuestions} QUESTIONS - NO MORE, NO LESS ⚠️⚠️⚠️
 CRITICAL: The response MUST contain EXACTLY ${numQuestions} question objects in the JSON array.
+${totalBatches > 1 ? `CRITICAL VARIATION (Parallel Batch ${batchIndex + 1} of ${totalBatches}): Ensure all numbers, contexts, and scenarios in these ${numQuestions} question(s) are distinct and unique (Variant Set #${batchIndex + 1}).\n` : ''}
 CRITICAL: If you generate fewer than ${numQuestions} questions, the request will fail.
 CRITICAL: If you generate more than ${numQuestions} questions, only the first ${numQuestions} will be used.
 CRITICAL: Count your questions before submitting - ensure the array has EXACTLY ${numQuestions} elements.
@@ -465,6 +542,7 @@ CRITICAL FINAL REMINDER:
     userPrompt = `${'='.repeat(80)}
 ⚠️⚠️⚠️ CRITICAL: YOU MUST GENERATE EXACTLY ${numQuestions} QUESTIONS - NO MORE, NO LESS ⚠️⚠️⚠️
 CRITICAL: The response MUST contain EXACTLY ${numQuestions} question objects in the JSON array.
+${totalBatches > 1 ? `CRITICAL VARIATION (Parallel Batch ${batchIndex + 1} of ${totalBatches}): Ensure all numbers, contexts, and scenarios in these ${numQuestions} question(s) are distinct and unique (Variant Set #${batchIndex + 1}).\n` : ''}
 CRITICAL: If you generate fewer than ${numQuestions} questions, the request will fail.
 CRITICAL: If you generate more than ${numQuestions} questions, only the first ${numQuestions} will be used.
 CRITICAL: Count your questions before submitting - ensure the array has EXACTLY ${numQuestions} elements.
