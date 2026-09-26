@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getOpenAIClient } from '@/lib/openai'
 import { analyzeImageForQuestion, generateWithAI, getAIProvider } from '@/lib/ai-client'
+import { doesNaraModelSupportVision } from '@/lib/nararouter'
 import { loadCurriculumSubskills } from '@/lib/curriculum'
 import { parseNumberOfOptions, determineQuestionType } from '@/lib/question-utils'
 
@@ -109,6 +110,8 @@ async function generateQuestionsWithGPT(
       let visionModel = model
       if (provider === 'openai') {
         visionModel = model === 'gpt-4o' || model === 'gpt-4-turbo' ? model : 'gpt-4o'
+      } else if (provider === 'nararouter') {
+        visionModel = doesNaraModelSupportVision(model) ? model : 'agnes-3-flash'
       } else {
         // Gemini - use the model if it supports vision, otherwise use gemini-1.5-pro
         visionModel = model.startsWith('gemini-') ? model : 'gemini-1.5-pro'
@@ -1141,6 +1144,8 @@ ${isImageBased ? '' : '- DO NOT change sentence structure, grammatical patterns,
     let maxModelTokens = 16384 // Default for OpenAI models (GPT-4o, GPT-4 Turbo, GPT-3.5 Turbo)
     if (aiProvider === 'gemini') {
       maxModelTokens = 8192 // Gemini models typically support 8192 output tokens
+    } else if (aiProvider === 'nararouter') {
+      maxModelTokens = 8192
     }
     
     // Calculate tokens needed
@@ -1195,6 +1200,8 @@ ${isImageBased ? '' : '- DO NOT change sentence structure, grammatical patterns,
     
     if (provider === 'openai') {
       supportsVision = model === 'gpt-4o' || model === 'gpt-4-turbo' || model === 'gpt-4-turbo-preview'
+    } else if (provider === 'nararouter') {
+      supportsVision = doesNaraModelSupportVision(model)
     } else {
       // Gemini models support vision
       supportsVision = model.startsWith('gemini-')
@@ -1220,6 +1227,8 @@ ${isImageBased ? '' : '- DO NOT change sentence structure, grammatical patterns,
         let fallbackModel = 'gpt-4o'
         if (provider === 'gemini') {
           fallbackModel = 'gemini-1.5-pro'
+        } else if (provider === 'nararouter') {
+          fallbackModel = 'agnes-3-flash'
         }
         console.warn(`${model} not available, falling back to ${fallbackModel}`)
         content = await generateWithAI(

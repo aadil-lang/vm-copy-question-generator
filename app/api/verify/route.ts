@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getOpenAIClient } from '@/lib/openai'
+import { generateWithAI } from '@/lib/ai-client'
 
 export async function POST(request: NextRequest) {
   try {
@@ -239,14 +239,7 @@ CRITICAL OUTPUT REQUIREMENTS:
 - CONTEXT CORRECTION: Only correct context if it is clearly impractical or unreasonable - be conservative but thorough`
 
     try {
-      const client = getOpenAIClient()
-      
-      const response = await client.chat.completions.create({
-        model: model,
-        messages: [
-          { 
-            role: 'system', 
-            content: `You are an expert mathematical question verifier with exceptional attention to detail. Your primary responsibility is to ensure absolute mathematical correctness. 
+      const systemPrompt = `You are an expert mathematical question verifier with exceptional attention to detail. Your primary responsibility is to ensure absolute mathematical correctness. 
 
 CRITICAL INSTRUCTIONS:
 1. You MUST solve every question completely from scratch before verifying anything
@@ -255,21 +248,14 @@ CRITICAL INSTRUCTIONS:
 4. You MUST verify that all distractors are actually incorrect
 5. Mathematical accuracy is paramount - be extremely thorough
 6. Always return valid JSON only, no markdown code blocks`
-          },
-          { role: 'user', content: verifyPrompt }
-        ],
-        max_tokens: 3000,
-        temperature: 0.0, // Zero temperature for maximum consistency and determinism
-      })
-      
-      if (!response.choices || response.choices.length === 0) {
-        throw new Error('GPT returned empty response')
-      }
-      
-      const content = response.choices[0].message.content
-      if (!content || content.trim().length === 0) {
-        throw new Error('GPT returned empty content')
-      }
+
+      const content = await generateWithAI(
+        systemPrompt,
+        verifyPrompt,
+        model,
+        0.0,
+        3000
+      )
       
       // Parse JSON from response
       let cleanedContent = content.trim()
@@ -326,17 +312,11 @@ CRITICAL INSTRUCTIONS:
         result: parsed
       })
     } catch (error: any) {
-      // If model is not available, fallback to gpt-4o
-      if ((model === 'gpt-5' || model === 'o3' || model === 'o4-mini') && 
-          (error?.message?.includes('model') || error?.code === 'model_not_found')) {
-        console.warn(`${model} not available for verification, falling back to GPT-4o`)
-        const client = getOpenAIClient()
-        const response = await client.chat.completions.create({
-          model: 'gpt-4o',
-          messages: [
-            { 
-              role: 'system', 
-              content: `You are an expert mathematical question verifier with exceptional attention to detail. Your primary responsibility is to ensure absolute mathematical correctness. 
+      // If model is not available, fallback
+      if (error?.message?.includes('model') || error?.code === 'model_not_found') {
+        const fallbackModel = model.startsWith('agnes-') ? 'agnes-3-flash' : 'gpt-4o'
+        console.warn(`${model} not available for verification, falling back to ${fallbackModel}`)
+        const systemPrompt = `You are an expert mathematical question verifier with exceptional attention to detail. Your primary responsibility is to ensure absolute mathematical correctness. 
 
 CRITICAL INSTRUCTIONS:
 1. You MUST solve every question completely from scratch before verifying anything
@@ -345,21 +325,14 @@ CRITICAL INSTRUCTIONS:
 4. You MUST verify that all distractors are actually incorrect
 5. Mathematical accuracy is paramount - be extremely thorough
 6. Always return valid JSON only, no markdown code blocks`
-            },
-            { role: 'user', content: verifyPrompt }
-          ],
-          max_tokens: 3000,
-          temperature: 0.0, // Zero temperature for maximum consistency and determinism
-        })
-        
-        if (!response.choices || response.choices.length === 0) {
-          throw new Error('GPT returned empty response')
-        }
-        
-        const content = response.choices[0].message.content
-        if (!content || content.trim().length === 0) {
-          throw new Error('GPT returned empty content')
-        }
+
+        const content = await generateWithAI(
+          systemPrompt,
+          verifyPrompt,
+          fallbackModel,
+          0.0,
+          3000
+        )
         
         let cleanedContent = content.trim()
         cleanedContent = cleanedContent.replace(/```json\s*/g, '')

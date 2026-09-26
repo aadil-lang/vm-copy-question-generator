@@ -99,7 +99,10 @@ vm-copy-question-generator/
 
 ## Environment Variables
 
-- `OPENAI_API_KEY`: Your OpenAI API key (required)
+- `NARAROUTER_API_KEY`: Your NaraRouter API key (required if using NaraRouter models like `agnes-3-flash`)
+- `NARAROUTER_BASE_URL`: NaraRouter API Base URL (defaults to `https://router.bynara.id/v1`)
+- `OPENAI_API_KEY`: Your OpenAI API key (optional if using NaraRouter)
+- `GEMINI_API_KEY`: Your Google Gemini API key (optional if using NaraRouter)
 
 ## Notes
 

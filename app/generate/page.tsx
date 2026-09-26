@@ -23,7 +23,7 @@ function GeneratePageContent() {
   const [images, setImages] = useState('')
   const [uploadedImages, setUploadedImages] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
-  const [model, setModel] = useState('gpt-4o')
+  const [model, setModel] = useState('agnes-3-flash')
   const [loading, setLoading] = useState(false)
   const [loadingText, setLoadingText] = useState('')
   const [questions, setQuestions] = useState<Question[]>([])
@@ -1776,11 +1776,20 @@ function GeneratePageContent() {
               required
                 style={{ width: '100%' }}
             >
+                <optgroup label="NaraRouter">
+                  <option value="agnes-3-flash">Agnes 3 Flash (Vision)</option>
+                  <option value="agnes-2.5-flash">Agnes 2.5 Flash (Vision)</option>
+                  <option value="gemini-3.8-flash-high">Gemini 3.8 Flash High (Vision)</option>
+                  <option value="gemini-3.1-pro-high">Gemini 3.1 Pro High (Vision)</option>
+                  <option value="space-bunny-alpha">Space Bunny Alpha (Vision, Free)</option>
+                  <option value="qwen3.8-flash">Qwen 3.8 Flash (Vision)</option>
+                  <option value="nemotron-3.5-lightning-free">Nemotron 3.5 Lightning (Free, Text)</option>
+                </optgroup>
                 <optgroup label="OpenAI">
                   <option value="o3">O3</option>
                   <option value="o4-mini">O4 Mini</option>
                   <option value="gpt-5">GPT-5</option>
-              <option value="gpt-4o">GPT-4o</option>
+                  <option value="gpt-4o">GPT-4o</option>
                 </optgroup>
                 <optgroup label="Google Gemini">
                   <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>

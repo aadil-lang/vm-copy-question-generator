@@ -22,7 +22,7 @@ export default function BaseGeneratePage() {
   const [standardCode, setStandardCode] = useState('')
   const [notes, setNotes] = useState('')
   const [setOfQuestions, setSetOfQuestions] = useState('1')
-  const [model, setModel] = useState('gpt-4o')
+  const [model, setModel] = useState('agnes-3-flash')
   const [loading, setLoading] = useState(false)
   const [questions, setQuestions] = useState<Question[]>([])
   const [error, setError] = useState('')
@@ -454,6 +454,15 @@ export default function BaseGeneratePage() {
                     cursor: 'pointer'
                   }}
                 >
+                  <optgroup label="NaraRouter">
+                    <option value="agnes-3-flash">Agnes 3 Flash (Vision)</option>
+                    <option value="agnes-2.5-flash">Agnes 2.5 Flash (Vision)</option>
+                    <option value="gemini-3.8-flash-high">Gemini 3.8 Flash High (Vision)</option>
+                    <option value="gemini-3.1-pro-high">Gemini 3.1 Pro High (Vision)</option>
+                    <option value="space-bunny-alpha">Space Bunny Alpha (Vision, Free)</option>
+                    <option value="qwen3.8-flash">Qwen 3.8 Flash (Vision)</option>
+                    <option value="nemotron-3.5-lightning-free">Nemotron 3.5 Lightning (Free, Text)</option>
+                  </optgroup>
                   <optgroup label="OpenAI">
                     <option value="gpt-4o">GPT-4o</option>
                     <option value="gpt-5">GPT-5</option>
